@@ -392,6 +392,22 @@ Transformers 允许您修改请求和响应负载，以确保与不同提供商 
 -   `qwen-cli` (实验性): 通过 Qwen CLI [qwen-cli.js](https://gist.github.com/musistudio/f5a67841ced39912fd99e42200d5ca8b) 对 qwen3-coder-plus 的非官方支持。
 -   `rovo-cli` (experimental): 通过 Atlassian Rovo Dev CLI [rovo-cli.js](https://gist.github.com/SaseQ/c2a20a38b11276537ec5332d1f7a5e53) 对 GPT-5 的非官方支持。
 
+#### DeepSeek & MiMo 推理内容回传修复（多轮对话）
+
+DeepSeek V4 和 MiMo 模型在多轮对话中需要回传 `reasoning_content`，否则后续请求会返回 400 错误。
+
+**快速修复**：使用 `deepseek` 转换器配合 OpenAI 兼容端点：
+
+```json
+{
+  "name": "deepseek",
+  "api_base_url": "https://api.deepseek.com/chat/completions",
+  "transformer": { "use": ["deepseek"] }
+}
+```
+
+> 📖 **详细文档**：参见 [REASONING_CONTENT_FIX.md](docs/REASONING_CONTENT_FIX.md) 了解根因分析、配置示例和故障排除。
+
 **自定义 Transformer:**
 
 您还可以创建自己的转换器，并通过 `config.json` 中的 `transformers` 字段加载它们。

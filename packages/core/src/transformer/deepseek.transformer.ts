@@ -1,20 +1,109 @@
 import { UnifiedChatRequest } from "../types/llm";
 import { Transformer } from "../types/transformer";
 
+/**
+ * Reasoning content store for multi-turn conversations.
+ * 
+ * DeepSeek V4 and MiMo thinking mode requires that the reasoning_content
+ * from any assistant turn that performed tool calls be sent back on the
+ * assistant message in every subsequent request.
+ * 
+ * This store captures reasoning_content from responses and reinjects it
+ * on subsequent requests using tool_call IDs as a stable key.
+ * 
+ * Merged from PR #1376 (reasoning store) and PR #1375 (bidirectional conversion)
+ */
+const REASONING_STORE = new Map<string, string>();
+const REASONING_STORE_LIMIT = 1000;
+
+function storeReasoning(key: string, value: string): void {
+  if (REASONING_STORE.size >= REASONING_STORE_LIMIT) {
+    const firstKey = REASONING_STORE.keys().next().value;
+    if (firstKey !== undefined) REASONING_STORE.delete(firstKey);
+  }
+  REASONING_STORE.set(key, value);
+}
+
+function keyFromToolCalls(toolCalls: any): string | null {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return null;
+  const ids: string[] = toolCalls
+    .map((tc: any) => tc && tc.id)
+    .filter((id: any): id is string => typeof id === "string" && id.length > 0);
+  if (ids.length === 0) return null;
+  return ids.slice().sort().join("|");
+}
+
 export class DeepseekTransformer implements Transformer {
   name = "deepseek";
 
   async transformRequestIn(request: UnifiedChatRequest): Promise<UnifiedChatRequest> {
+    // Limit max_tokens for DeepSeek
     if (request.max_tokens && request.max_tokens > 8192) {
-      request.max_tokens = 8192; // DeepSeek has a max token limit of 8192
+      request.max_tokens = 8192;
     }
+    
+    // Convert thinking → reasoning_content (from PR #1375)
+    // This handles the case where Claude Code sends thinking content
+    if (request.messages) {
+      for (const message of request.messages) {
+        if (message.role === "assistant" && message.thinking) {
+          if (message.thinking.content) {
+            (message as any).reasoning_content = message.thinking.content;
+          }
+          delete (message as any).thinking;
+        }
+      }
+    }
+    
+    // Reinject stored reasoning_content for tool-call messages (from PR #1376)
+    // This handles multi-turn conversations where Claude Code strips reasoning_content
+    if (request && Array.isArray((request as any).messages)) {
+      for (const msg of (request as any).messages) {
+        if (!msg || msg.role !== "assistant") continue;
+        // Skip if reasoning_content already exists
+        if (typeof msg.reasoning_content === "string" && msg.reasoning_content) continue;
+        // Look up stored reasoning by tool_call IDs
+        const key = keyFromToolCalls(msg.tool_calls);
+        if (!key) continue;
+        const stored = REASONING_STORE.get(key);
+        if (stored) msg.reasoning_content = stored;
+      }
+    }
+    
+    // Convert reasoning → thinking parameters (from PR #1375)
+    // This handles the thinking mode configuration
+    if ((request as any).reasoning) {
+      (request as any).thinking = {
+        type: "enabled",
+      };
+      if ((request as any).reasoning.effort) {
+        (request as any).reasoning_effort = (request as any).reasoning.effort;
+      }
+      delete (request as any).reasoning;
+    }
+    
     return request;
   }
 
   async transformResponseOut(response: Response): Promise<Response> {
     if (response.headers.get("Content-Type")?.includes("application/json")) {
-      const jsonResponse = await response.json();
-      // Handle non-streaming response if needed
+      const jsonResponse: any = await response.json();
+      
+      // Handle non-streaming: reasoning_content → thinking (from PR #1375)
+      if (jsonResponse.choices?.[0]?.message?.reasoning_content) {
+        const reasoningContent = jsonResponse.choices[0].message.reasoning_content;
+        jsonResponse.choices[0].message.thinking = {
+          content: reasoningContent,
+        };
+        // Store for potential multi-turn use (from PR #1376)
+        const toolCalls = jsonResponse.choices?.[0]?.message?.tool_calls;
+        if (toolCalls && toolCalls.length > 0) {
+          const key = keyFromToolCalls(toolCalls);
+          if (key) storeReasoning(key, reasoningContent);
+        }
+        delete jsonResponse.choices[0].message.reasoning_content;
+      }
+      
       return new Response(JSON.stringify(jsonResponse), {
         status: response.status,
         statusText: response.statusText,
@@ -29,7 +118,8 @@ export class DeepseekTransformer implements Transformer {
       const encoder = new TextEncoder();
       let reasoningContent = "";
       let isReasoningComplete = false;
-      let buffer = ""; // 用于缓冲不完整的数据
+      let buffer = "";
+      const toolCallIds: string[] = []; // Collect tool_call IDs for reasoning store
 
       const stream = new ReadableStream({
         async start(controller) {
@@ -66,6 +156,18 @@ export class DeepseekTransformer implements Transformer {
             ) {
               try {
                 const data = JSON.parse(line.slice(6));
+
+                // Collect tool_call IDs from delta (from PR #1376)
+                const deltaToolCalls = data.choices?.[0]?.delta?.tool_calls;
+                if (Array.isArray(deltaToolCalls)) {
+                  for (const tc of deltaToolCalls) {
+                    if (tc?.id && typeof tc.id === "string" && tc.id.length > 0) {
+                      if (!toolCallIds.includes(tc.id)) {
+                        toolCallIds.push(tc.id);
+                      }
+                    }
+                  }
+                }
 
                 // Extract reasoning_content from delta
                 if (data.choices?.[0]?.delta?.reasoning_content) {
@@ -157,10 +259,17 @@ export class DeepseekTransformer implements Transformer {
             while (true) {
               const { done, value } = await reader.read();
               if (done) {
-                // 处理缓冲区中剩余的数据
+                // Process remaining buffer
                 if (buffer.trim()) {
                   processBuffer(buffer, controller, encoder);
                 }
+                
+                // Store reasoning content for multi-turn use (from PR #1376)
+                if (toolCallIds.length > 0 && reasoningContent) {
+                  const key = toolCallIds.slice().sort().join("|");
+                  storeReasoning(key, reasoningContent);
+                }
+                
                 break;
               }
 

@@ -420,6 +420,22 @@ Transformers allow you to modify the request and response payloads to ensure com
 - `qwen-cli` (experimental): Unofficial support for qwen3-coder-plus model via Qwen CLI [qwen-cli.js](https://gist.github.com/musistudio/f5a67841ced39912fd99e42200d5ca8b).
 - `rovo-cli` (experimental): Unofficial support for gpt-5 via Atlassian Rovo Dev CLI [rovo-cli.js](https://gist.github.com/SaseQ/c2a20a38b11276537ec5332d1f7a5e53).
 
+#### Reasoning Content Fix for DeepSeek & MiMo (Multi-Turn Conversation)
+
+DeepSeek V4 and MiMo models require `reasoning_content` to be passed back in multi-turn conversations. Without this fix, subsequent turns fail with a 400 error.
+
+**Quick Fix**: Use `deepseek` transformer with OpenAI-compatible endpoints:
+
+```json
+{
+  "name": "deepseek",
+  "api_base_url": "https://api.deepseek.com/chat/completions",
+  "transformer": { "use": ["deepseek"] }
+}
+```
+
+> 📖 **Detailed documentation**: See [REASONING_CONTENT_FIX.md](docs/REASONING_CONTENT_FIX.md) for root cause analysis, configuration examples, and troubleshooting.
+
 **Custom Transformers:**
 
 You can also create your own transformers and load them via the `transformers` field in `config.json`.
