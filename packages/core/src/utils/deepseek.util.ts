@@ -311,9 +311,24 @@ export function buildReasoningCacheNamespace(
 export function prepareReasoningReplay(
   request: UnifiedChatRequest,
   provider: Pick<LLMProvider, "name" | "baseUrl"> | undefined,
-  context?: TransformerContext
+  context?: TransformerContext,
+  forceReasoningReplay?: boolean
 ): { restoredFromCache: number; restoredFromThinking: number } {
-  if (!isDeepSeekThinkingRequest(request, provider)) {
+  if (!forceReasoningReplay && !isDeepSeekThinkingRequest(request, provider)) {
+    if (context?.req) {
+      delete (context.req as any)[CONTEXT_KEY];
+    }
+    return { restoredFromCache: 0, restoredFromThinking: 0 };
+  }
+
+  const thinkingEnabled =
+    request.enable_thinking === true ||
+    request.thinking?.type === "enabled" ||
+    request.reasoning?.enabled === true ||
+    typeof request.reasoning?.effort === "string" ||
+    typeof request.reasoning?.max_tokens === "number";
+
+  if (!thinkingEnabled) {
     if (context?.req) {
       delete (context.req as any)[CONTEXT_KEY];
     }
@@ -412,6 +427,7 @@ export function appendAssistantResponseDelta(
   delta: {
     content?: unknown;
     reasoning_content?: unknown;
+    thinking?: { content?: string } | null;
     tool_calls?: Array<Record<string, any>>;
   }
 ): void {
@@ -419,6 +435,14 @@ export function appendAssistantResponseDelta(
 
   if (typeof delta.reasoning_content === "string") {
     recorder.reasoning += delta.reasoning_content;
+  }
+
+  if (
+    delta.thinking &&
+    typeof delta.thinking === "object" &&
+    typeof delta.thinking.content === "string"
+  ) {
+    recorder.reasoning += delta.thinking.content;
   }
 
   if (typeof delta.content === "string") {

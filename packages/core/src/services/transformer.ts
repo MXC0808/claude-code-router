@@ -15,6 +15,7 @@ interface TransformerConfig {
 export class TransformerService {
   private transformers: Map<string, Transformer | TransformerConstructor> =
     new Map();
+  private transformerClasses: Map<string, TransformerConstructor> = new Map();
 
   constructor(
     private readonly configService: ConfigService,
@@ -32,10 +33,33 @@ export class TransformerService {
     );
   }
 
+  registerTransformerClass(name: string, transformerClass: TransformerConstructor): void {
+    this.transformerClasses.set(name, transformerClass);
+  }
+
   getTransformer(
     name: string
   ): Transformer | TransformerConstructor | undefined {
     return this.transformers.get(name);
+  }
+
+  createTransformerInstance(
+    name: string,
+    options?: any
+  ): Transformer | undefined {
+    const transformerClass = this.transformerClasses.get(name);
+    if (transformerClass && typeof transformerClass === 'function') {
+      const instance = new transformerClass(options);
+      if (instance && typeof instance === 'object') {
+        (instance as any).logger = this.logger;
+      }
+      return instance;
+    }
+    const existing = this.transformers.get(name);
+    if (existing && typeof existing === 'object') {
+      return existing;
+    }
+    return undefined;
   }
 
   getAllTransformers(): Map<string, Transformer | TransformerConstructor> {
@@ -145,6 +169,10 @@ export class TransformerService {
             this.registerTransformer(
               transformerInstance.name!,
               transformerInstance
+            );
+            this.registerTransformerClass(
+              transformerInstance.name!,
+              TransformerStatic
             );
           }
         }

@@ -66,7 +66,8 @@ export function buildThinkingChunk(
 
 /**
  * Extract reasoning text from various provider-specific delta fields.
- * Supports: delta.reasoning_content (DeepSeek/Mistral), delta.reasoning (OpenRouter)
+ * Supports: delta.reasoning_content (DeepSeek/Mistral), delta.reasoning (OpenRouter),
+ *           delta.thinking.content (mimo/xiaomi)
  */
 export function extractReasoningText(delta: any): string | null {
   if (delta.reasoning_content) {
@@ -80,6 +81,12 @@ export function extractReasoningText(delta: any): string | null {
   if (delta.reasoning) {
     const r = delta.reasoning;
     return typeof r === "string" ? r : null;
+  }
+  if (delta.thinking && typeof delta.thinking === "object") {
+    const content = delta.thinking.content;
+    if (typeof content === "string" && content.length > 0) {
+      return content;
+    }
   }
   return null;
 }

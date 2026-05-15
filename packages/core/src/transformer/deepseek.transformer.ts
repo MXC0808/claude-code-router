@@ -1,5 +1,5 @@
 import { UnifiedChatRequest } from "../types/llm";
-import { Transformer } from "../types/transformer";
+import { Transformer, TransformerOptions } from "../types/transformer";
 import { createSSEStreamReader, StreamContext, encodeSSEData, encodeSSELine } from "../utils/stream";
 import {
   ReasoningAccumulator,
@@ -19,8 +19,14 @@ import {
   recordReasoningResponseMessage,
 } from "../utils/deepseek.util";
 
+export interface DeepseekTransformerOptions extends TransformerOptions {
+  requiresReasoningReplay?: boolean;
+}
+
 export class DeepseekTransformer implements Transformer {
   name = "deepseek";
+
+  constructor(private readonly options?: DeepseekTransformerOptions) {}
 
   async transformRequestIn(
     request: UnifiedChatRequest,
@@ -30,7 +36,7 @@ export class DeepseekTransformer implements Transformer {
     if (request.max_tokens && request.max_tokens > 8192) {
       request.max_tokens = 8192;
     }
-    prepareReasoningReplay(request, provider, context);
+    prepareReasoningReplay(request, provider, context, this.options?.requiresReasoningReplay);
     return request;
   }
 
@@ -119,6 +125,10 @@ export class DeepseekTransformer implements Transformer {
 
           if (delta.reasoning_content) {
             delete delta.reasoning_content;
+          }
+
+          if (delta.thinking) {
+            delete delta.thinking;
           }
 
           if (

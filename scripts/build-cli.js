@@ -81,10 +81,15 @@ try {
 
   // Remove existing dist directory in root if it exists
   if (fs.existsSync(rootDistDir)) {
-    fs.rmSync(rootDistDir, { recursive: true, force: true });
+    try {
+      fs.rmSync(rootDistDir, { recursive: true, force: true });
+    } catch (e) {
+      // If removal fails (e.g., root-owned files), try to copy anyway
+      console.warn('⚠ Warning: Could not fully clean root dist directory:', e.message);
+    }
   }
 
-  // Copy CLI dist to root
+  // Copy CLI dist to root (overwrite existing files)
   fs.cpSync(cliDistDir, rootDistDir, { recursive: true });
   console.log('✓ CLI dist copied to project root successfully!');
 

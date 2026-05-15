@@ -45,9 +45,17 @@ export class ProviderService {
               if (Array.isArray(providerConfig.transformer.use)) {
                 transformer.use = providerConfig.transformer.use.map((transformer) => {
                   if (Array.isArray(transformer) && typeof transformer[0] === 'string') {
-                    const Constructor = this.transformerService.getTransformer(transformer[0]);
-                    if (Constructor) {
-                      return new (Constructor as TransformerConstructor)(transformer[1]);
+                    const name = transformer[0];
+                    const options = transformer[1];
+                    if (options && typeof options === 'object') {
+                      return this.transformerService.createTransformerInstance(name, options);
+                    }
+                    const registered = this.transformerService.getTransformer(name);
+                    if (registered) {
+                      if (typeof registered === 'function') {
+                        return new registered();
+                      }
+                      return registered;
                     }
                   }
                   if (typeof transformer === 'string') {
@@ -64,9 +72,17 @@ export class ProviderService {
                 transformer[key] = {
                   use: providerConfig.transformer[key].use.map((transformer) => {
                     if (Array.isArray(transformer) && typeof transformer[0] === 'string') {
-                      const Constructor = this.transformerService.getTransformer(transformer[0]);
-                      if (Constructor) {
-                        return new (Constructor as TransformerConstructor)(transformer[1]);
+                      const name = transformer[0];
+                      const options = transformer[1];
+                      if (options && typeof options === 'object') {
+                        return this.transformerService.createTransformerInstance(name, options);
+                      }
+                      const registered = this.transformerService.getTransformer(name);
+                      if (registered) {
+                        if (typeof registered === 'function') {
+                          return new registered();
+                        }
+                        return registered;
                       }
                     }
                     if (typeof transformer === 'string') {
