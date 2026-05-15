@@ -91,6 +91,8 @@ export function convertToOpenAI(
 
     if (typeof msg.reasoning_content === "string") {
       message.reasoning_content = msg.reasoning_content;
+    } else if (msg.thinking?.content) {
+      message.reasoning_content = msg.thinking.content;
     }
 
     if (msg.tool_calls && msg.tool_calls.length > 0) {
@@ -271,6 +273,7 @@ export function convertFromAnthropic(
   }
   const pendingToolCalls: any[] = [];
   const pendingTextContent: string[] = [];
+  const pendingThinkingContent: string[] = [];
   let lastRole: string | null = null;
 
   for (let i = 0; i < request.messages.length; i++) {
@@ -294,6 +297,7 @@ export function convertFromAnthropic(
         messages.push(assistantMessage);
         pendingToolCalls.length = 0;
         pendingTextContent.length = 0;
+        pendingThinkingContent.length = 0;
       }
 
       messages.push({
@@ -304,6 +308,7 @@ export function convertFromAnthropic(
       const textBlocks: string[] = [];
       const toolCalls: any[] = [];
       const toolResults: any[] = [];
+      const thinkingBlocks: string[] = [];
 
       msg.content.forEach((block) => {
         if (block.type === "text") {
@@ -319,6 +324,12 @@ export function convertFromAnthropic(
           });
         } else if (block.type === "tool_result") {
           toolResults.push(block);
+        } else if (block.type === "thinking") {
+          thinkingBlocks.push(
+            typeof (block as any).thinking === "string"
+              ? (block as any).thinking
+              : ((block as any).thinking || "")
+          );
         }
       });
 
@@ -332,9 +343,15 @@ export function convertFromAnthropic(
           if (pendingTextContent.length === 0) {
             assistantMessage.content = null;
           }
+          if (pendingThinkingContent.length > 0) {
+            assistantMessage.thinking = {
+              content: pendingThinkingContent.join(""),
+            };
+          }
           messages.push(assistantMessage);
           pendingToolCalls.length = 0;
           pendingTextContent.length = 0;
+          pendingThinkingContent.length = 0;
         }
 
         toolResults.forEach((toolResult) => {
@@ -351,6 +368,7 @@ export function convertFromAnthropic(
         if (lastRole === "assistant") {
           pendingToolCalls.push(...toolCalls);
           pendingTextContent.push(...textBlocks);
+          pendingThinkingContent.push(...thinkingBlocks);
         } else {
           if (pendingToolCalls.length > 0) {
             const prevAssistantMessage: UnifiedMessage = {
@@ -361,13 +379,20 @@ export function convertFromAnthropic(
             if (pendingTextContent.length === 0) {
               prevAssistantMessage.content = null;
             }
+            if (pendingThinkingContent.length > 0) {
+              prevAssistantMessage.thinking = {
+                content: pendingThinkingContent.join(""),
+              };
+            }
             messages.push(prevAssistantMessage);
           }
 
           pendingToolCalls.length = 0;
           pendingTextContent.length = 0;
+          pendingThinkingContent.length = 0;
           pendingToolCalls.push(...toolCalls);
           pendingTextContent.push(...textBlocks);
+          pendingThinkingContent.push(...thinkingBlocks);
         }
       } else {
         if (lastRole === "assistant" && pendingToolCalls.length > 0) {
@@ -379,9 +404,15 @@ export function convertFromAnthropic(
           if (pendingTextContent.length === 0) {
             assistantMessage.content = null;
           }
+          if (pendingThinkingContent.length > 0) {
+            assistantMessage.thinking = {
+              content: pendingThinkingContent.join(""),
+            };
+          }
           messages.push(assistantMessage);
           pendingToolCalls.length = 0;
           pendingTextContent.length = 0;
+          pendingThinkingContent.length = 0;
         }
 
         const message: UnifiedMessage = {
@@ -408,9 +439,15 @@ export function convertFromAnthropic(
         if (pendingTextContent.length === 0) {
           assistantMessage.content = null;
         }
+        if (pendingThinkingContent.length > 0) {
+          assistantMessage.thinking = {
+            content: pendingThinkingContent.join(""),
+          };
+        }
         messages.push(assistantMessage);
         pendingToolCalls.length = 0;
         pendingTextContent.length = 0;
+        pendingThinkingContent.length = 0;
       }
 
       messages.push({
@@ -430,6 +467,11 @@ export function convertFromAnthropic(
     };
     if (pendingTextContent.length === 0) {
       assistantMessage.content = null;
+    }
+    if (pendingThinkingContent.length > 0) {
+      assistantMessage.thinking = {
+        content: pendingThinkingContent.join(""),
+      };
     }
     messages.push(assistantMessage);
   }
