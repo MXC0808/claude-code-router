@@ -167,6 +167,8 @@ export class AnthropicTransformer implements Transformer {
 
             const thinkingPart = msg.content.find(
               (c: any) => c.type === "thinking" && c.signature
+            ) || msg.content.find(
+              (c: any) => c.type === "thinking" && c.thinking
             );
             if (thinkingPart) {
               assistantMessage.thinking = {

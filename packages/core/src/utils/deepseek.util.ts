@@ -334,12 +334,7 @@ export function prepareReasoningReplay(
     typeof request.reasoning?.effort === "string" ||
     typeof request.reasoning?.max_tokens === "number";
 
-  if (!thinkingEnabled) {
-    if (forceReasoningReplay) {
-      console.warn(
-        "[prepareReasoningReplay] forceReasoningReplay=true but thinking not enabled in request; skipping reasoning replay"
-      );
-    }
+  if (!thinkingEnabled && !forceReasoningReplay) {
     return discardReasoningContext(context);
   }
 
@@ -380,6 +375,11 @@ export function prepareReasoningReplay(
               restoredFromCache++;
             }
           }
+        }
+      } else if (forceReasoningReplay) {
+        if (!message.reasoning_content && message.thinking?.content) {
+          message.reasoning_content = message.thinking.content;
+          restoredFromThinking++;
         }
       }
 
