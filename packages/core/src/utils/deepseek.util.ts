@@ -308,6 +308,15 @@ export function buildReasoningCacheNamespace(
   );
 }
 
+function discardReasoningContext(
+  context?: TransformerContext
+): { restoredFromCache: 0; restoredFromThinking: 0 } {
+  if (context?.req) {
+    delete (context.req as any)[CONTEXT_KEY];
+  }
+  return { restoredFromCache: 0, restoredFromThinking: 0 };
+}
+
 export function prepareReasoningReplay(
   request: UnifiedChatRequest,
   provider: Pick<LLMProvider, "name" | "baseUrl"> | undefined,
@@ -315,10 +324,7 @@ export function prepareReasoningReplay(
   forceReasoningReplay?: boolean
 ): { restoredFromCache: number; restoredFromThinking: number } {
   if (!forceReasoningReplay && !isDeepSeekThinkingRequest(request, provider)) {
-    if (context?.req) {
-      delete (context.req as any)[CONTEXT_KEY];
-    }
-    return { restoredFromCache: 0, restoredFromThinking: 0 };
+    return discardReasoningContext(context);
   }
 
   const thinkingEnabled =
@@ -329,10 +335,12 @@ export function prepareReasoningReplay(
     typeof request.reasoning?.max_tokens === "number";
 
   if (!thinkingEnabled) {
-    if (context?.req) {
-      delete (context.req as any)[CONTEXT_KEY];
+    if (forceReasoningReplay) {
+      console.warn(
+        "[prepareReasoningReplay] forceReasoningReplay=true but thinking not enabled in request; skipping reasoning replay"
+      );
     }
-    return { restoredFromCache: 0, restoredFromThinking: 0 };
+    return discardReasoningContext(context);
   }
 
   const namespace = buildReasoningCacheNamespace(request, provider);
