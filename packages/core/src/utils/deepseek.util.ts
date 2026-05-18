@@ -377,9 +377,17 @@ export function prepareReasoningReplay(
           }
         }
       } else if (forceReasoningReplay) {
-        if (!message.reasoning_content && message.thinking?.content) {
-          message.reasoning_content = message.thinking.content;
-          restoredFromThinking++;
+        if (!message.reasoning_content) {
+          if (message.thinking?.content) {
+            message.reasoning_content = message.thinking.content;
+            restoredFromThinking++;
+          } else {
+            const restored = lookupReasoning(message, scope);
+            if (restored) {
+              message.reasoning_content = restored;
+              restoredFromCache++;
+            }
+          }
         }
       }
 
