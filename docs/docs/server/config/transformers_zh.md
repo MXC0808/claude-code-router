@@ -4,28 +4,28 @@ sidebar_position: 4
 
 # Transformers
 
-Transformers are the core mechanism for adapting API differences between LLM providers. They convert requests and responses between different formats, handle authentication, and manage provider-specific features.
+Transformer 是适配不同 LLM provider API 差异的核心机制。它们在不同格式之间转换请求和响应，处理认证，并管理 provider 特定的功能。
 
-## Understanding Transformers
+## 理解 Transformer
 
-### What is a Transformer?
+### 什么是 Transformer？
 
-A transformer is a plugin that:
-- **Transforms requests** from the unified format to provider-specific format
-- **Transforms responses** from provider format back to unified format
-- **Handles authentication** for provider APIs
-- **Modifies requests** to add or adjust parameters
+Transformer 是一个插件，它可以：
+- **转换请求**：从统一格式转换为 provider 特定格式
+- **转换响应**：从 provider 格式转换回统一格式
+- **处理认证**：为 provider API 处理认证
+- **修改请求**：添加或调整参数
 
-### Data Flow
+### 数据流
 
 ```
 ┌─────────────────┐
-│ Incoming Request│ (Anthropic format from Claude Code)
+│ Incoming Request│ (来自 Claude Code 的 Anthropic 格式)
 └────────┬────────┘
          │
          ▼
 ┌─────────────────────────────────┐
-│  transformRequestOut            │ ← Parse incoming request to unified format
+│  transformRequestOut            │ ← 解析传入请求为统一格式
 └────────┬────────────────────────┘
          │
          ▼
@@ -35,7 +35,7 @@ A transformer is a plugin that:
          │
          ▼
 ┌─────────────────────────────────┐
-│  transformRequestIn (optional)  │ ← Modify unified request before sending
+│  transformRequestIn (可选)      │ ← 发送前修改统一请求
 └────────┬────────────────────────┘
          │
          ▼
@@ -45,70 +45,70 @@ A transformer is a plugin that:
          │
          ▼
 ┌─────────────────────────────────┐
-│  transformResponseIn (optional) │ ← Convert provider response to unified format
+│  transformResponseIn (可选)     │ ← 将 provider 响应转换为统一格式
 └────────┬────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────┐
-│  transformResponseOut (optional)│ ← Convert unified response to Anthropic format
+│  transformResponseOut (可选)    │ ← 将统一响应转换为 Anthropic 格式
 └────────┬────────────────────────┘
          │
          ▼
 ┌─────────────────┐
-│ Outgoing Response│ (Anthropic format to Claude Code)
+│ Outgoing Response│ (发送给 Claude Code 的 Anthropic 格式)
 └─────────────────┘
 ```
 
-### Transformer Interface
+### Transformer 接口
 
-All transformers implement the following interface:
+所有 transformer 都实现以下接口：
 
 ```typescript
 interface Transformer {
-  // Convert unified request to provider-specific format
+  // 将统一请求转换为 provider 特定格式
   transformRequestIn?: (
     request: UnifiedChatRequest,
     provider: LLMProvider,
     context: TransformerContext
   ) => Promise<Record<string, any>>;
 
-  // Convert provider request to unified format
+  // 将 provider 请求转换为统一格式
   transformRequestOut?: (
     request: any,
     context: TransformerContext
   ) => Promise<UnifiedChatRequest>;
 
-  // Convert provider response to unified format
+  // 将 provider 响应转换为统一格式
   transformResponseIn?: (
     response: Response,
     context?: TransformerContext
   ) => Promise<Response>;
 
-  // Convert unified response to provider format
+  // 将统一响应转换为 provider 格式
   transformResponseOut?: (
     response: Response,
     context: TransformerContext
   ) => Promise<Response>;
 
-  // Custom endpoint path (optional)
+  // 自定义端点路径（可选）
   endPoint?: string;
 
-  // Transformer name (for custom transformers)
+  // Transformer 名称（用于自定义 transformer）
   name?: string;
 
-  // Custom authentication handler (optional)
+  // 自定义认证处理器（可选）
   auth?: (
     request: any,
     provider: LLMProvider,
     context: TransformerContext
   ) => Promise<any>;
 
-  // Logger instance (auto-injected)
+  // 日志实例（自动注入）
   logger?: any;
 }
 ```
 
-### Key Types
+### 关键类型
 
 #### UnifiedChatRequest
 
@@ -151,17 +151,17 @@ interface UnifiedMessage {
 }
 ```
 
-## Built-in Transformers
+## 内置 Transformer
 
-The project includes 25 built-in transformers organized into three categories: Provider-specific transformers, Cross-cutting functional transformers, and Utility transformers.
+项目包含 25 个内置 transformer，分为三类：Provider 专用 transformer、跨功能 transformer 和工具 transformer。
 
-### Provider-Specific Transformers
+### Provider 专用 Transformer
 
-These transformers adapt requests and responses for specific LLM provider APIs.
+这些 transformer 为特定的 LLM provider API 适配请求和响应。
 
 #### anthropic
 
-Transforms requests to be compatible with Anthropic Messages API.
+将请求转换为兼容 Anthropic Messages API 的格式。
 
 ```json
 {
@@ -174,21 +174,21 @@ Transforms requests to be compatible with Anthropic Messages API.
 }
 ```
 
-**Features:**
-- Converts Anthropic message format to/from OpenAI format
-- Handles tool calls and tool results (`tool_use`/`tool_result` content blocks)
-- Supports thinking/reasoning content blocks
-- Manages streaming responses (Anthropic SSE event format)
-- Handles base64 image sources
-- Supports dual auth modes: `x-api-key` and `Bearer` token
+**功能：**
+- 在 Anthropic 消息格式和 OpenAI 格式之间转换
+- 处理工具调用和工具结果（`tool_use`/`tool_result` 内容块）
+- 支持 thinking/reasoning 内容块
+- 管理流式响应（Anthropic SSE 事件格式）
+- 处理 base64 图片源
+- 支持双认证模式：`x-api-key` 和 `Bearer` token
 
-**Endpoint:** `/v1/messages`
+**端点：** `/v1/messages`
 
 ---
 
 #### gemini
 
-Transformer for Google Gemini native API.
+用于 Google Gemini 原生 API 的 transformer。
 
 ```json
 {
@@ -201,18 +201,18 @@ Transformer for Google Gemini native API.
 }
 ```
 
-**Features:**
-- Converts to Gemini's `generateContent` or `streamGenerateContent` format
-- Dynamically constructs API URL based on model name and streaming mode
-- Authenticates with `x-goog-api-key` header
+**功能：**
+- 转换为 Gemini 的 `generateContent` 或 `streamGenerateContent` 格式
+- 根据模型名称和流式模式动态构建 API URL
+- 使用 `x-goog-api-key` 头进行认证
 
-**Endpoint:** `/v1beta/models/:modelAndAction`
+**端点：** `/v1beta/models/:modelAndAction`
 
 ---
 
 #### deepseek
 
-Specialized transformer for DeepSeek API.
+专用于 DeepSeek API 的 transformer。
 
 ```json
 {
@@ -225,18 +225,18 @@ Specialized transformer for DeepSeek API.
 }
 ```
 
-**Features:**
-- DeepSeek-specific reasoning format handling
-- Extracts `reasoning_content` from responses and converts to `thinking` blocks
-- Caps `max_tokens` at 8192 (DeepSeek limit)
-- Supports reasoning replay for context continuity
-- Handles both streaming (SSE) and non-streaming responses
+**功能：**
+- 处理 DeepSeek 特定的推理格式
+- 从响应中提取 `reasoning_content` 并转换为 `thinking` 块
+- 将 `max_tokens` 限制为 8192（DeepSeek 限制）
+- 支持推理重放以保持上下文连续性
+- 处理流式（SSE）和非流式响应
 
 ---
 
 #### openai
 
-Pass-through transformer for OpenAI-compatible APIs (no transformation needed).
+用于 OpenAI 兼容 API 的透传 transformer（无需转换）。
 
 ```json
 {
@@ -249,13 +249,13 @@ Pass-through transformer for OpenAI-compatible APIs (no transformation needed).
 }
 ```
 
-**Endpoint:** `/v1/chat/completions`
+**端点：** `/v1/chat/completions`
 
 ---
 
 #### openrouter
 
-Transformer for OpenRouter API (proxies multiple LLM providers).
+用于 OpenRouter API 的 transformer（代理多个 LLM provider）。
 
 ```json
 {
@@ -268,18 +268,18 @@ Transformer for OpenRouter API (proxies multiple LLM providers).
 }
 ```
 
-**Features:**
-- Model-aware: behaves differently for Claude vs. non-Claude models
-- Strips `cache_control` for non-Claude models
-- Extracts reasoning content from various formats
-- Normalizes tool call IDs to `call_<uuid>` format
-- Handles image URL conversion for different models
+**功能：**
+- 模型感知：对 Claude 和非 Claude 模型有不同的行为
+- 为非 Claude 模型去除 `cache_control`
+- 从各种格式提取推理内容
+- 将工具调用 ID 规范化为 `call_<uuid>` 格式
+- 处理不同模型的图片 URL 转换
 
 ---
 
 #### groq
 
-Transformer for Groq API (fast inference for open-source models).
+用于 Groq API 的 transformer（开源模型的快速推理）。
 
 ```json
 {
@@ -292,17 +292,17 @@ Transformer for Groq API (fast inference for open-source models).
 }
 ```
 
-**Features:**
-- Strips cache control markers (Groq does not support prompt caching)
-- Normalizes tool parameter schemas
-- Generates UUID-based tool call IDs
-- Fixes tool call ordering when appearing after text content
+**功能：**
+- 去除缓存控制标记（Groq 不支持提示缓存）
+- 规范化工具参数 schema
+- 生成基于 UUID 的工具调用 ID
+- 修复工具调用在文本内容之后出现时的排序问题
 
 ---
 
 #### mistral
 
-Transformer for Mistral API (OpenAI-compatible).
+用于 Mistral API 的 transformer（OpenAI 兼容）。
 
 ```json
 {
@@ -315,16 +315,16 @@ Transformer for Mistral API (OpenAI-compatible).
 }
 ```
 
-**Features:**
-- Converts to Mistral's chat completions format
-- Handles Mistral's thinking/reasoning format conversion
-- Authenticates with `Bearer` token
+**功能：**
+- 转换为 Mistral 的聊天完成格式
+- 处理 Mistral 的 thinking/reasoning 格式转换
+- 使用 `Bearer` token 进行认证
 
 ---
 
 #### cerebras
 
-Transformer for Cerebras inference service.
+用于 Cerebras 推理服务的 transformer。
 
 ```json
 {
@@ -341,7 +341,7 @@ Transformer for Cerebras inference service.
 
 #### vercel
 
-Transformer for Vercel AI SDK format.
+用于 Vercel AI SDK 格式的 transformer。
 
 ```json
 {
@@ -358,7 +358,7 @@ Transformer for Vercel AI SDK format.
 
 #### codex
 
-Transformer for OpenAI Codex / ChatGPT backend API (Responses API format).
+用于 OpenAI Codex / ChatGPT 后端 API 的 transformer（Responses API 格式）。
 
 ```json
 {
@@ -371,18 +371,18 @@ Transformer for OpenAI Codex / ChatGPT backend API (Responses API format).
 }
 ```
 
-**Features:**
-- Converts Chat Completions format to Responses API format
-- Handles OAuth authentication via `getValidAccessToken()`
-- Converts messages to Responses API `input` array items
-- Supports special tools like `WebSearch` and `Edit`
-- Maps Responses API events back to Chat Completions SSE format
+**功能：**
+- 将 Chat Completions 格式转换为 Responses API 格式
+- 通过 `getValidAccessToken()` 处理 OAuth 认证
+- 将消息转换为 Responses API 的 `input` 数组项
+- 支持特殊工具如 `WebSearch` 和 `Edit`
+- 将 Responses API 事件映射回 Chat Completions SSE 格式
 
 ---
 
 #### vertex-gemini
 
-Transformer for Google Vertex AI (Gemini endpoint).
+用于 Google Vertex AI（Gemini 端点）的 transformer。
 
 ```json
 {
@@ -395,16 +395,16 @@ Transformer for Google Vertex AI (Gemini endpoint).
 }
 ```
 
-**Features:**
-- Adapts Vertex AI's Gemini endpoint
-- Uses Google OAuth authentication
-- Handles Vertex-specific request/response formats
+**功能：**
+- 适配 Vertex AI 的 Gemini 端点
+- 使用 Google OAuth 认证
+- 处理 Vertex 特定的请求/响应格式
 
 ---
 
 #### vertex-claude
 
-Transformer for Google Vertex AI (Claude endpoint).
+用于 Google Vertex AI（Claude 端点）的 transformer。
 
 ```json
 {
@@ -417,15 +417,15 @@ Transformer for Google Vertex AI (Claude endpoint).
 }
 ```
 
-**Features:**
-- Adapts Vertex AI's Claude endpoint
-- Uses Google OAuth authentication
+**功能：**
+- 适配 Vertex AI 的 Claude 端点
+- 使用 Google OAuth 认证
 
 ---
 
 #### chrome-on-device
 
-Transformer for Chrome's on-device model (Prompt API).
+用于 Chrome 本地模型的 transformer（Prompt API）。
 
 ```json
 {
@@ -438,22 +438,22 @@ Transformer for Chrome's on-device model (Prompt API).
 }
 ```
 
-**Features:**
-- Adapts Chrome's Prompt API format
-- Converts tool definitions to text instructions
-- Routes requests to local Chrome bridge
+**功能：**
+- 适配 Chrome 的 Prompt API 格式
+- 将工具定义转换为文本指令
+- 将请求路由到本地 Chrome bridge
 
-**Default Bridge URL:** `http://127.0.0.1:3457`
+**默认 Bridge URL：** `http://127.0.0.1:3457`
 
 ---
 
-### Cross-Cutting Functional Transformers
+### 跨功能 Transformer
 
-These transformers provide provider-agnostic functionality that can be applied to any provider.
+这些 transformer 提供与 provider 无关的功能，可应用于任何 provider。
 
 #### reasoning
 
-Cross-cutting transformer for reasoning/thinking mode control.
+用于推理/思考模式控制的跨功能 transformer。
 
 ```json
 {
@@ -468,18 +468,18 @@ Cross-cutting transformer for reasoning/thinking mode control.
 }
 ```
 
-**Features:**
-- Enables/disables thinking mode across providers
-- Converts `reasoning` configuration to provider-specific flags (`thinking` for Anthropic-style, `enable_thinking` for others)
-- Extracts `reasoning_content` from responses and converts to `thinking` blocks
-- Supports reasoning replay for context continuity
-- Configurable via `enable` option (default: `true`)
+**功能：**
+- 跨 provider 启用/禁用 thinking 模式
+- 将 `reasoning` 配置转换为 provider 特定的标志（Anthropic 风格使用 `thinking`，其他使用 `enable_thinking`）
+- 从响应中提取 `reasoning_content` 并转换为 `thinking` 块
+- 支持推理重放以保持上下文连续性
+- 通过 `enable` 选项可配置（默认：`true`）
 
 ---
 
 #### tooluse
 
-Enforces mandatory tool usage mode.
+强制工具使用模式。
 
 ```json
 {
@@ -491,17 +491,17 @@ Enforces mandatory tool usage mode.
 }
 ```
 
-**Features:**
-- Injects system prompt instructing model to use tools
-- Adds `ExitTool` function as the only way to exit tool mode
-- Sets `tool_choice = "required"`
-- Intercepts `ExitTool` calls and converts to regular content messages
+**功能：**
+- 注入系统提示，指示模型使用工具
+- 添加 `ExitTool` 函数作为退出工具模式的唯一方式
+- 设置 `tool_choice = "required"`
+- 拦截 `ExitTool` 调用并转换为常规内容消息
 
 ---
 
 #### enhancetool
 
-Enhances tool handling for non-streaming responses.
+增强非流式响应的工具处理。
 
 ```json
 {
@@ -513,15 +513,15 @@ Enhances tool handling for non-streaming responses.
 }
 ```
 
-**Features:**
-- Parses non-streaming tool call arguments
-- Normalizes tool call format
+**功能：**
+- 解析非流式工具调用参数
+- 规范化工具调用格式
 
 ---
 
 #### forcereasoning
 
-Forces reasoning mode to be enabled.
+强制启用推理模式。
 
 ```json
 {
@@ -533,18 +533,18 @@ Forces reasoning mode to be enabled.
 }
 ```
 
-**Features:**
-- Always enables thinking/reasoning regardless of request configuration
+**功能：**
+- 无论请求配置如何，始终启用 thinking/reasoning
 
 ---
 
-### Utility Transformers
+### 工具 Transformer
 
-These transformers provide specific parameter handling or cleanup functionality.
+这些 transformer 提供特定的参数处理或清理功能。
 
 #### maxtoken
 
-Limits `max_tokens` in requests.
+限制请求中的 `max_tokens`。
 
 ```json
 {
@@ -564,7 +564,7 @@ Limits `max_tokens` in requests.
 
 #### maxcompletiontokens
 
-Handles `max_completion_tokens` parameter (OpenAI new format).
+处理 `max_completion_tokens` 参数（OpenAI 新格式）。
 
 ```json
 {
@@ -580,7 +580,7 @@ Handles `max_completion_tokens` parameter (OpenAI new format).
 
 #### sampling
 
-Handles sampling parameters (temperature, top_p, etc.).
+处理采样参数（temperature、top_p 等）。
 
 ```json
 {
@@ -596,7 +596,7 @@ Handles sampling parameters (temperature, top_p, etc.).
 
 #### streamoptions
 
-Handles streaming options configuration.
+处理流式选项配置。
 
 ```json
 {
@@ -612,7 +612,7 @@ Handles streaming options configuration.
 
 #### cleancache
 
-Cleans cache-related markers from requests.
+清理请求中的缓存相关标记。
 
 ```json
 {
@@ -624,14 +624,14 @@ Cleans cache-related markers from requests.
 }
 ```
 
-**Features:**
-- Removes `cache_control` markers that are not supported by the target provider
+**功能：**
+- 移除目标 provider 不支持的 `cache_control` 标记
 
 ---
 
 #### customparams
 
-Injects custom parameters into requests.
+向请求注入自定义参数。
 
 ```json
 {
@@ -647,13 +647,13 @@ Injects custom parameters into requests.
 }
 ```
 
-## Creating Custom Transformers
+## 创建自定义 Transformer
 
-### Simple Transformer: Modifying Requests
+### 简单 Transformer：修改请求
 
-The simplest transformers just modify the request before it's sent to the provider.
+最简单的 transformer 只是在请求发送到 provider 之前修改它。
 
-**Example: Add a custom header to all requests**
+**示例：向所有请求添加自定义头**
 
 ```javascript
 // custom-header-transformer.js
@@ -666,7 +666,7 @@ module.exports = class CustomHeaderTransformer {
   }
 
   async transformRequestIn(request, provider, context) {
-    // Add custom header (will be used by auth method)
+    // 添加自定义头（将被 auth 方法使用）
     request._customHeaders = {
       [this.headerName]: this.headerValue
     };
@@ -686,7 +686,7 @@ module.exports = class CustomHeaderTransformer {
 };
 ```
 
-**Usage in config:**
+**在配置中使用：**
 
 ```json
 {
@@ -703,19 +703,19 @@ module.exports = class CustomHeaderTransformer {
 }
 ```
 
-### Intermediate Transformer: Request/Response Conversion
+### 中级 Transformer：请求/响应转换
 
-This example shows how to convert between different API formats.
+此示例展示如何在不同 API 格式之间进行转换。
 
-**Example: Mock API format transformer**
+**示例：Mock API 格式 transformer**
 
 ```javascript
 // mockapi-transformer.js
 module.exports = class MockAPITransformer {
   name = 'mockapi';
-  endPoint = '/v1/chat';  // Custom endpoint
+  endPoint = '/v1/chat';  // 自定义端点
 
-  // Convert from MockAPI format to unified format
+  // 从 MockAPI 格式转换为统一格式
   async transformRequestOut(request, context) {
     const messages = request.conversation.map(msg => ({
       role: msg.sender,
@@ -730,7 +730,7 @@ module.exports = class MockAPITransformer {
     };
   }
 
-  // Convert from unified format to MockAPI format
+  // 从统一格式转换为 MockAPI 格式
   async transformRequestIn(request, provider, context) {
     return {
       model_id: request.model,
@@ -743,7 +743,7 @@ module.exports = class MockAPITransformer {
     };
   }
 
-  // Convert MockAPI response to unified format
+  // 将 MockAPI 响应转换为统一格式
   async transformResponseIn(response, context) {
     const data = await response.json();
 
@@ -776,11 +776,11 @@ module.exports = class MockAPITransformer {
 };
 ```
 
-### Advanced Transformer: Streaming Response Processing
+### 高级 Transformer：流式响应处理
 
-This example shows how to handle streaming responses.
+此示例展示如何处理流式响应。
 
-**Example: Add custom metadata to streaming responses**
+**示例：向流式响应添加自定义元数据**
 
 ```javascript
 // streaming-metadata-transformer.js
@@ -789,18 +789,18 @@ module.exports = class StreamingMetadataTransformer {
 
   constructor(options) {
     this.metadata = options?.metadata || {};
-    this.logger = null;  // Will be injected by the system
+    this.logger = null;  // 将由系统注入
   }
 
   async transformResponseOut(response, context) {
     const contentType = response.headers.get('Content-Type');
 
-    // Handle streaming response
+    // 处理流式响应
     if (contentType?.includes('text/event-stream')) {
       return this.transformStream(response, context);
     }
 
-    // Handle non-streaming response
+    // 处理非流式响应
     return response;
   }
 
@@ -837,12 +837,12 @@ module.exports = class StreamingMetadataTransformer {
               try {
                 const chunk = JSON.parse(data);
 
-                // Add custom metadata
+                // 添加自定义元数据
                 if (chunk.choices && chunk.choices[0]) {
                   chunk.choices[0].metadata = this.metadata;
                 }
 
-                // Log for debugging
+                // 用于调试的日志
                 this.logger?.debug({
                   chunk,
                   context: context.req.id
@@ -851,7 +851,7 @@ module.exports = class StreamingMetadataTransformer {
                 const modifiedLine = `data: ${JSON.stringify(chunk)}\n\n`;
                 controller.enqueue(encoder.encode(modifiedLine));
               } catch (parseError) {
-                // If parsing fails, pass through original line
+                // 如果解析失败，透传原始行
                 controller.enqueue(encoder.encode(line + '\n'));
               }
             }
@@ -879,9 +879,9 @@ module.exports = class StreamingMetadataTransformer {
 };
 ```
 
-### Real-World Example: Reasoning Content Transformer
+### 实际示例：Reasoning Content Transformer
 
-This is based on the actual `reasoning.transformer.ts` from the codebase.
+基于代码库中实际的 `reasoning.transformer.ts`。
 
 ```typescript
 // reasoning-transformer.ts
@@ -895,7 +895,7 @@ export class ReasoningTransformer implements Transformer {
     this.enable = this.options?.enable ?? true;
   }
 
-  // Transform request to add reasoning parameters
+  // 转换请求以添加推理参数
   async transformRequestIn(request: UnifiedChatRequest): Promise<UnifiedChatRequest> {
     if (!this.enable) {
       request.thinking = {
@@ -916,13 +916,13 @@ export class ReasoningTransformer implements Transformer {
     return request;
   }
 
-  // Transform response to convert reasoning_content to thinking format
+  // 转换响应以将 reasoning_content 转换为 thinking 格式
   async transformResponseOut(response: Response): Promise<Response> {
     if (!this.enable) return response;
 
     const contentType = response.headers.get("Content-Type");
 
-    // Handle non-streaming response
+    // 处理非流式响应
     if (contentType?.includes("application/json")) {
       const jsonResponse = await response.json();
       if (jsonResponse.choices[0]?.message.reasoning_content) {
@@ -937,10 +937,10 @@ export class ReasoningTransformer implements Transformer {
       });
     }
 
-    // Handle streaming response
+    // 处理流式响应
     if (contentType?.includes("stream")) {
-      // [Streaming transformation code here]
-      // See the full implementation in the codebase
+      // [流式转换代码]
+      // 完整实现请参见代码库
     }
 
     return response;
@@ -948,26 +948,26 @@ export class ReasoningTransformer implements Transformer {
 }
 ```
 
-## Transformer Registration
+## Transformer 注册
 
-### Method 1: Static Name (Class-based)
+### 方法 1：静态名称（基于类）
 
-Use this when creating a transformer in TypeScript/ES6:
+在 TypeScript/ES6 中创建 transformer 时使用：
 
 ```typescript
 export class MyTransformer implements Transformer {
   static TransformerName = "my-transformer";
 
   async transformRequestIn(request: UnifiedChatRequest): Promise<any> {
-    // Transformation logic
+    // 转换逻辑
     return request;
   }
 }
 ```
 
-### Method 2: Instance Name (Instance-based)
+### 方法 2：实例名称（基于实例）
 
-Use this for JavaScript transformers:
+用于 JavaScript transformer：
 
 ```javascript
 module.exports = class MyTransformer {
@@ -977,17 +977,17 @@ module.exports = class MyTransformer {
   }
 
   async transformRequestIn(request, provider, context) {
-    // Transformation logic
+    // 转换逻辑
     return request;
   }
 };
 ```
 
-## Applying Transformers
+## 应用 Transformer
 
-### Global Application (Provider Level)
+### 全局应用（Provider 级别）
 
-Apply to all requests for a provider:
+应用于 provider 的所有请求：
 
 ```json
 {
@@ -1002,9 +1002,9 @@ Apply to all requests for a provider:
 }
 ```
 
-### Model-Specific Application
+### 特定模型应用
 
-Apply to specific models only:
+仅应用于特定模型：
 
 ```json
 {
@@ -1020,11 +1020,11 @@ Apply to specific models only:
 }
 ```
 
-Note: The model format is `provider,model` (e.g., `deepseek,deepseek-chat`).
+注意：模型格式为 `provider,model`（例如 `deepseek,deepseek-chat`）。
 
-### Global Transformers (All Providers)
+### 全局 Transformer（所有 Provider）
 
-Apply transformers to all providers:
+将 transformer 应用于所有 provider：
 
 ```json
 {
@@ -1037,9 +1037,9 @@ Apply transformers to all providers:
 }
 ```
 
-### Passing Options
+### 传递选项
 
-Some transformers accept configuration options:
+某些 transformer 接受配置选项：
 
 ```json
 {
@@ -1061,20 +1061,20 @@ Some transformers accept configuration options:
 }
 ```
 
-## Best Practices
+## 最佳实践
 
-### 1. Immutability
+### 1. 不可变性
 
-Always create new objects rather than mutating existing ones:
+始终创建新对象而不是修改现有对象：
 
 ```javascript
-// Bad
+// 不好
 async transformRequestIn(request) {
   request.max_tokens = 4096;
   return request;
 }
 
-// Good
+// 好
 async transformRequestIn(request) {
   return {
     ...request,
@@ -1083,30 +1083,30 @@ async transformRequestIn(request) {
 }
 ```
 
-### 2. Error Handling
+### 2. 错误处理
 
-Always handle errors gracefully:
+始终优雅地处理错误：
 
 ```javascript
 async transformResponseIn(response) {
   try {
     const data = await response.json();
-    // Process data
+    // 处理数据
     return new Response(JSON.stringify(processedData), {
       status: response.status,
       headers: response.headers
     });
   } catch (error) {
     this.logger?.error({ error }, 'Transformation failed');
-    // Return original response if transformation fails
+    // 如果转换失败，返回原始响应
     return response;
   }
 }
 ```
 
-### 3. Logging
+### 3. 日志记录
 
-Use the injected logger for debugging:
+使用注入的 logger 进行调试：
 
 ```javascript
 async transformRequestIn(request, provider, context) {
@@ -1115,19 +1115,19 @@ async transformRequestIn(request, provider, context) {
     provider: provider.name
   }, 'Transforming request');
 
-  // Your transformation logic
+  // 您的转换逻辑
 
   return modifiedRequest;
 }
 ```
 
-### 4. Stream Handling
+### 4. 流处理
 
-When handling streams, always:
-- Use a buffer to handle incomplete chunks
-- Properly release the reader lock
-- Handle errors in the stream
-- Close the controller when done
+处理流时，始终：
+- 使用缓冲区处理不完整的块
+- 正确释放 reader 锁
+- 处理流中的错误
+- 完成后关闭 controller
 
 ```javascript
 const transformedStream = new ReadableStream({
@@ -1140,7 +1140,7 @@ const transformedStream = new ReadableStream({
         const { done, value } = await reader.read();
         if (done) break;
 
-        // Process stream...
+        // 处理流...
       }
     } catch (error) {
       controller.error(error);
@@ -1152,41 +1152,41 @@ const transformedStream = new ReadableStream({
 });
 ```
 
-### 5. Context Usage
+### 5. Context 使用
 
-The `context` parameter contains useful information:
+`context` 参数包含有用的信息：
 
 ```javascript
 async transformRequestIn(request, provider, context) {
-  // Access request ID
+  // 访问请求 ID
   const requestId = context.req.id;
 
-  // Access original request
+  // 访问原始请求
   const originalRequest = context.req.original;
 
-  // Your transformation logic
+  // 您的转换逻辑
 }
 ```
 
-## Testing Your Transformer
+## 测试您的 Transformer
 
-### Manual Testing
+### 手动测试
 
-1. Add your transformer to the config
-2. Start the server: `ccr restart`
-3. Check logs: `tail -f ~/.claude-code-router/logs/ccr-*.log`
-4. Make a test request
-5. Verify the output
+1. 将您的 transformer 添加到配置中
+2. 启动服务器：`ccr restart`
+3. 检查日志：`tail -f ~/.claude-code-router/logs/ccr-*.log`
+4. 发送测试请求
+5. 验证输出
 
-### Debug Tips
+### 调试技巧
 
-- Add logging to track transformation steps
-- Test with both streaming and non-streaming requests
-- Verify error handling with invalid inputs
-- Check that original responses are returned on error
+- 添加日志以跟踪转换步骤
+- 同时测试流式和非流式请求
+- 使用无效输入验证错误处理
+- 检查错误时是否返回原始响应
 
-## Next Steps
+## 后续步骤
 
-- [Advanced Topics](/docs/server/advanced/custom-router) - Advanced routing customization
-- [Agents](/docs/server/advanced/agents) - Extending with agents
-- [Core Package](/docs/server/intro) - Learn about @musistudio/llms
+- [高级主题](/docs/server/advanced/custom-router) - 高级路由自定义
+- [Agents](/docs/server/advanced/agents) - 使用 agent 扩展
+- [核心包](/docs/server/intro) - 了解 @musistudio/llms
