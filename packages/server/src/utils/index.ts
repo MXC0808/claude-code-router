@@ -166,7 +166,8 @@ export const backupConfigFile = async () => {
 export const writeConfigFile = async (config: any) => {
   await ensureDir(HOME_DIR);
   const configWithComment = `${JSON.stringify(config, null, 2)}`;
-  await fs.writeFile(CONFIG_FILE, configWithComment);
+  await fs.writeFile(CONFIG_FILE, configWithComment, { mode: 0o600 });
+  await fs.chmod(CONFIG_FILE, 0o600).catch(() => {});
 };
 
 export const initConfig = async () => {
