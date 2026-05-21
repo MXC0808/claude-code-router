@@ -105,7 +105,20 @@
     "api_key_required": "API Key is required",
     "name_required": "Name is required",
     "name_duplicate": "A provider with this name already exists",
-    "search": "Search providers..."
+    "search": "Search providers...",
+    "search_models": "Search models...",
+    "no_models_found": "No models found",
+    "already_added": "Added",
+    "add_selected_models": "Add Selected ({{count}})",
+    "fetch_models_success": "Successfully added {{count}} model(s)",
+    "fetch_models_error_invalid_url": "Invalid API URL",
+    "fetch_models_error_auth": "Authentication failed. Please check your API Key.",
+    "fetch_models_error_not_found": "This provider does not support fetching model list.",
+    "fetch_models_error_timeout": "Request timeout. Please try again.",
+    "fetch_models_error_network": "Network error. Please check your connection.",
+    "fetch_models_error_unknown": "Failed to fetch models.",
+    "fetch_models_pre_check_url": "Please enter the API Base URL first.",
+    "fetch_models_pre_check_key": "Please enter the API Key first."
 
   },
   "router": {

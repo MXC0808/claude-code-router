@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,8 @@ import {
 import { X, Trash2, Plus, Eye, EyeOff, Search, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/ui/combobox";
-import { ComboInput } from "@/components/ui/combo-input";
+import { ModelSelector } from "@/components/ui/model-selector";
+import { Toast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import type { Provider } from "@/types";
 
@@ -28,7 +29,6 @@ export function Providers() {
   const { config, setConfig } = useConfig();
   const [editingProviderIndex, setEditingProviderIndex] = useState<number | null>(null);
   const [deletingProviderIndex, setDeletingProviderIndex] = useState<number | null>(null);
-  const [hasFetchedModels, setHasFetchedModels] = useState<Record<number, boolean>>({});
   const [providerParamInputs, setProviderParamInputs] = useState<Record<string, {name: string, value: string}>>({});
   const [modelParamInputs, setModelParamInputs] = useState<Record<string, {name: string, value: string}>>({});
   const [availableTransformers, setAvailableTransformers] = useState<{name: string; endpoint: string | null;}[]>([]);
@@ -39,7 +39,7 @@ export function Providers() {
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const comboInputRef = useRef<HTMLInputElement>(null);
+  const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
   useEffect(() => {
     const fetchProviderTemplates = async () => {
@@ -178,14 +178,7 @@ export function Providers() {
   };
 
   const handleCancelAddProvider = () => {
-    // Reset fetched models state for this provider
     if (editingProviderIndex !== null) {
-      setHasFetchedModels(prev => {
-        const newState = { ...prev };
-        delete newState[editingProviderIndex];
-        return newState;
-      });
-      // Reset API key visibility for this provider
       setShowApiKey(prev => {
         const newState = { ...prev };
         delete newState[editingProviderIndex];
@@ -639,71 +632,58 @@ export function Providers() {
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      {hasFetchedModels[editingProviderIndex] ? (
-                        <ComboInput
-                          ref={comboInputRef}
-                          options={(editingProvider.models || []).map((model: string) => ({ label: model, value: model }))}
-                          value=""
-                          onChange={() => {
-                            // Only update input values, do not add models
-                          }}
-                          onEnter={(value) => {
-                            if (editingProviderIndex !== null) {
-                              handleAddModel(editingProviderIndex, value);
-                            }
-                          }}
-                          inputPlaceholder={t("providers.models_placeholder")}
-                        />
-                      ) : (
-                        <Input 
-                          id="models" 
-                          placeholder={t("providers.models_placeholder")} 
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.currentTarget.value.trim() && editingProviderIndex !== null) {
-                              handleAddModel(editingProviderIndex, e.currentTarget.value);
-                              e.currentTarget.value = '';
-                            }
-                          }}
-                        />
-                      )}
+                      <Input
+                        id="models"
+                        placeholder={t("providers.models_placeholder")}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.currentTarget.value.trim() && editingProviderIndex !== null) {
+                            handleAddModel(editingProviderIndex, e.currentTarget.value);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
                     </div>
-                    <Button 
+                    <ModelSelector
+                      baseUrl={editingProvider.api_base_url || ''}
+                      apiKey={editingProvider.api_key || ''}
+                      selectedModels={editingProvider.models || []}
+                      onAddModels={(models) => {
+                        if (editingProviderIndex !== null) {
+                          models.forEach(m => handleAddModel(editingProviderIndex, m));
+                          setLocalToast({ message: t('providers.fetch_models_success', { count: models.length }), type: 'success' });
+                        }
+                      }}
+                      onError={(error) => {
+                        const errorKeyMap: Record<string, string> = {
+                          'INVALID_BASE_URL': 'fetch_models_error_invalid_url',
+                          'AUTH_FAILED': 'fetch_models_error_auth',
+                          'ENDPOINT_NOT_FOUND': 'fetch_models_error_not_found',
+                          'TIMEOUT': 'fetch_models_error_timeout',
+                          'NETWORK_ERROR': 'fetch_models_error_network',
+                          'UNKNOWN': 'fetch_models_error_unknown',
+                        };
+                        const i18nKey = errorKeyMap[error.code] || 'fetch_models_error_unknown';
+                        setLocalToast({ message: t(`providers.${i18nKey}`), type: 'error' });
+                      }}
+                    />
+                    <Button
                       onClick={() => {
-                        if (hasFetchedModels[editingProviderIndex] && comboInputRef.current) {
-                          // Use ComboInput logic
-                          const comboInput = comboInputRef.current as unknown as { getCurrentValue(): string; clearInput(): void };
-                          const currentValue = comboInput.getCurrentValue();
-                          if (currentValue && currentValue.trim() && editingProviderIndex !== null) {
-                            handleAddModel(editingProviderIndex, currentValue.trim());
-                            // Clear ComboInput
-                            comboInput.clearInput();
-                          }
-                        } else {
-                          // Use regular Input logic
-                          const input = document.getElementById('models') as HTMLInputElement;
-                          if (input && input.value.trim() && editingProviderIndex !== null) {
-                            handleAddModel(editingProviderIndex, input.value);
-                            input.value = '';
-                          }
+                        const input = document.getElementById('models') as HTMLInputElement;
+                        if (input && input.value.trim() && editingProviderIndex !== null) {
+                          handleAddModel(editingProviderIndex, input.value);
+                          input.value = '';
                         }
                       }}
                     >
                       {t("providers.add_model")}
                     </Button>
-                    {/* <Button 
-                      onClick={() => editingProvider && fetchAvailableModels(editingProvider)}
-                      disabled={isFetchingModels}
-                      variant="outline"
-                    >
-                      {isFetchingModels ? t("providers.fetching_models") : t("providers.fetch_available_models")}
-                    </Button> */}
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
                     {(editingProvider.models || []).map((model: string, modelIndex: number) => (
                       <Badge key={modelIndex} variant="outline" className="font-normal flex items-center gap-1">
                         {model}
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           className="ml-1 rounded-full hover:bg-gray-200"
                           onClick={() => editingProviderIndex !== null && handleRemoveModel(editingProviderIndex, modelIndex)}
                         >
@@ -1054,6 +1034,13 @@ export function Providers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    {localToast && (
+        <Toast
+          message={localToast.message}
+          type={localToast.type}
+          onClose={() => setLocalToast(null)}
+        />
+      )}
     </Card>
   );
 }

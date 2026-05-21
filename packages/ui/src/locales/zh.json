@@ -105,7 +105,20 @@
     "api_key_required": "API 密钥为必填项",
     "name_required": "名称为必填项",
     "name_duplicate": "已存在同名供应商",
-    "search": "搜索供应商..."
+    "search": "搜索供应商...",
+    "search_models": "搜索模型...",
+    "no_models_found": "未找到模型",
+    "already_added": "已添加",
+    "add_selected_models": "添加所选 ({{count}})",
+    "fetch_models_success": "成功添加 {{count}} 个模型",
+    "fetch_models_error_invalid_url": "无效的 API 地址",
+    "fetch_models_error_auth": "认证失败，请检查 API Key",
+    "fetch_models_error_not_found": "该供应商不支持获取模型列表",
+    "fetch_models_error_timeout": "获取模型超时，请重试",
+    "fetch_models_error_network": "网络错误，请检查网络连接",
+    "fetch_models_error_unknown": "获取模型失败",
+    "fetch_models_pre_check_url": "请先填写 API Base URL",
+    "fetch_models_pre_check_key": "请先填写 API Key"
 
   },
   "router": {

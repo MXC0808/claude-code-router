@@ -16,6 +16,34 @@ interface GroupedLogsResponse {
   };
 }
 
+// Types for the fetch models feature
+export interface FetchedModel {
+  id: string;
+  ownedBy: string | null;
+}
+
+export interface FetchModelsError {
+  code: string;
+  message: string;
+}
+
+interface FetchModelsResponse {
+  success: boolean;
+  models?: FetchedModel[];
+  error?: FetchModelsError;
+}
+
+export class FetchModelsAPIError extends Error {
+  constructor(public readonly error: FetchModelsError) {
+    super(error.message.slice(0, 200));
+    this.name = 'FetchModelsAPIError';
+  }
+
+  get code(): string {
+    return this.error.code;
+  }
+}
+
 // API Client Class for handling requests with baseUrl and apikey authentication
 class ApiClient {
   private baseUrl: string;
@@ -322,6 +350,19 @@ class ApiClient {
   // Install preset from GitHub repository
   async installPresetFromGitHub(repo: string, name?: string): Promise<any> {
     return this.post<any>('/presets/install/github', { repo, name });
+  }
+// Fetch models from a provider's API
+  async fetchProviderModels(baseUrl: string, apiKey: string): Promise<FetchedModel[]> {
+    const response = await this.post<FetchModelsResponse>('/providers/models', {
+      baseUrl,
+      apiKey,
+    });
+
+    if (!response.success && response.error) {
+      throw new FetchModelsAPIError(response.error);
+    }
+
+    return response.models || [];
   }
 }
 
