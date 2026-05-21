@@ -120,7 +120,8 @@
     "forceUseImageAgent": "强制使用图像代理",
     "selectModel": "选择一个模型...",
     "searchModel": "搜索模型...",
-    "noModelFound": "未找到模型."
+    "noModelFound": "未找到模型.",
+    "applyAll": "应用全部"
   },
   "json_editor": {
     "title": "JSON 编辑器",

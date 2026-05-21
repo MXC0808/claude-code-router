@@ -36,6 +36,10 @@ ccr code
 
 ## 变更记录
 
+#### v2.0.2
+
+feat：路由配置页新增"应用全部"按钮，选择默认模型后可一键覆盖所有场景（后台、思考、长上下文、网络搜索、图像）。
+
 #### v2.0.1
 
 feat：添加 Mistral、Codex、Chrome 设备端提供商；修复 Gemini/DeepSeek 流媒体播放和推理问题;   [#pr-1393](https://github.com/musistudio/claude-code-router/pull/1393)

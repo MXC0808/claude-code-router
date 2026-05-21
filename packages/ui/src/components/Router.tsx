@@ -2,14 +2,16 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useConfig } from "./ConfigProvider";
 import { Combobox } from "./ui/combobox";
+
+const SCENARIO_FIELDS = ["background", "think", "longContext", "webSearch", "image"] as const;
 
 export function Router() {
   const { t } = useTranslation();
   const { config, setConfig } = useConfig();
 
-  // Handle case where config is null or undefined
   if (!config) {
     return (
       <Card className="flex h-full flex-col rounded-lg border shadow-sm">
@@ -23,7 +25,6 @@ export function Router() {
     );
   }
 
-  // Handle case where config.Router is null or undefined
   const routerConfig = config.Router || {
     default: "",
     background: "",
@@ -35,7 +36,6 @@ export function Router() {
   };
 
   const handleRouterChange = (field: string, value: string | number) => {
-    // Handle case where config.Router might be null or undefined
     const currentRouter = config.Router || {};
     const newRouter = { ...currentRouter, [field]: value };
     setConfig({ ...config, Router: newRouter });
@@ -45,19 +45,23 @@ export function Router() {
     setConfig({ ...config, forceUseImageAgent: value });
   };
 
-  // Handle case where config.Providers might be null or undefined
+  const handleApplyAll = () => {
+    const defaultModel = routerConfig.default;
+    if (!defaultModel) return;
+    const currentRouter = config.Router || {};
+    const newRouter = { ...currentRouter };
+    for (const field of SCENARIO_FIELDS) {
+      newRouter[field] = defaultModel;
+    }
+    setConfig({ ...config, Router: newRouter });
+  };
+
   const providers = Array.isArray(config.Providers) ? config.Providers : [];
-  
+
   const modelOptions = providers.flatMap((provider) => {
-    // Handle case where individual provider might be null or undefined
     if (!provider) return [];
-    
-    // Handle case where provider.models might be null or undefined
     const models = Array.isArray(provider.models) ? provider.models : [];
-    
-    // Handle case where provider.name might be null or undefined
     const providerName = provider.name || "Unknown Provider";
-    
     return models.map((model) => ({
       value: `${providerName},${model || "Unknown Model"}`,
       label: `${providerName}, ${model || "Unknown Model"}`,
@@ -72,14 +76,27 @@ export function Router() {
       <CardContent className="flex-grow space-y-5 overflow-y-auto p-4">
         <div className="space-y-2">
           <Label>{t("router.default")}</Label>
-          <Combobox
-            options={modelOptions}
-            value={routerConfig.default || ""}
-            onChange={(value) => handleRouterChange("default", value)}
-            placeholder={t("router.selectModel")}
-            searchPlaceholder={t("router.searchModel")}
-            emptyPlaceholder={t("router.noModelFound")}
-          />
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Combobox
+                options={modelOptions}
+                value={routerConfig.default || ""}
+                onChange={(value) => handleRouterChange("default", value)}
+                placeholder={t("router.selectModel")}
+                searchPlaceholder={t("router.searchModel")}
+                emptyPlaceholder={t("router.noModelFound")}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="shrink-0"
+              disabled={!routerConfig.default}
+              onClick={handleApplyAll}
+            >
+              {t("router.applyAll")}
+            </Button>
+          </div>
         </div>
         <div className="space-y-2">
           <Label>{t("router.background")}</Label>
