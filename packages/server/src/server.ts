@@ -26,6 +26,84 @@ import fastifyMultipart from "@fastify/multipart";
 import AdmZip from "adm-zip";
 import { registerCodexAuthRoutes } from "./routes/codex-auth";
 
+const FETCH_MODELS_TIMEOUT_MS = 15000;
+
+const FETCH_MODELS_ERRORS = {
+  MISSING_BASE_URL: { code: 'MISSING_BASE_URL' as const, message: 'API Base URL is required' },
+  MISSING_API_KEY: { code: 'MISSING_API_KEY' as const, message: 'API Key is required' },
+  INVALID_BASE_URL: { code: 'INVALID_BASE_URL' as const, message: 'Invalid base URL. Please check the address.' },
+  AUTH_FAILED: { code: 'AUTH_FAILED' as const, message: 'Authentication failed. Please check your API Key.' },
+  ENDPOINT_NOT_FOUND: { code: 'ENDPOINT_NOT_FOUND' as const, message: 'This provider does not support fetching model list.' },
+  TIMEOUT: { code: 'TIMEOUT' as const, message: 'Request timeout. Please try again.' },
+  NETWORK_ERROR: { code: 'NETWORK_ERROR' as const, message: 'Network error. Please check your connection.' },
+  UNKNOWN: { code: 'UNKNOWN' as const, message: 'Failed to fetch models.' },
+} as const;
+
+const COMPAT_SUFFIXES = [
+  '/api/claudecode',
+  '/api/anthropic',
+  '/apps/anthropic',
+  '/api/coding',
+  '/claudecode',
+  '/anthropic',
+  '/step_plan',
+  '/coding',
+  '/claude',
+] as const;
+
+function validateBaseUrl(baseUrl: string): { valid: boolean; error?: string } {
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return { valid: false, error: 'Unsupported protocol. Only HTTP/HTTPS are allowed.' };
+  }
+
+  if (url.username || url.password) {
+    return { valid: false, error: 'URL must not contain credentials' };
+  }
+
+  return { valid: true };
+}
+
+function buildModelsUrlCandidates(baseUrl: string): string[] {
+  const trimmed = baseUrl.trim().replace(/\/+/g, '/').replace(/\/$/, '');
+  const candidates = new Set<string>();
+
+  if (trimmed.match(/\/(v1\/)?chat\/completions$/)) {
+    const root = trimmed.replace(/\/(v1\/)?chat\/completions$/, '');
+    candidates.add(`${root}/v1/models`);
+    candidates.add(`${root}/models`);
+  } else if (trimmed.endsWith('/completions')) {
+    const root = trimmed.replace(/\/completions$/, '');
+    candidates.add(`${root}/v1/models`);
+  } else if (trimmed.endsWith('/v1')) {
+    candidates.add(`${trimmed}/models`);
+  } else if (trimmed.includes('/v1beta/models')) {
+    candidates.add(trimmed);
+  } else {
+    candidates.add(`${trimmed}/v1/models`);
+    candidates.add(`${trimmed}/models`);
+  }
+
+  for (const suffix of COMPAT_SUFFIXES) {
+    const idx = trimmed.indexOf(suffix);
+    if (idx !== -1) {
+      const root = trimmed.substring(0, idx);
+      if (root) {
+        candidates.add(`${root}/v1/models`);
+        candidates.add(`${root}/models`);
+      }
+    }
+  }
+
+  return Array.from(candidates);
+}
+
 export const createServer = async (config: any): Promise<any> => {
   const server = new Server(config);
   const app = server.app;
@@ -533,6 +611,94 @@ export const createServer = async (config: any): Promise<any> => {
     const manifest = JSON.parse(entry.getData().toString('utf-8')) as ManifestFile;
     return manifestToPresetFile(manifest);
   }
+
+  // Fetch models from provider API
+  app.post('/api/providers/models', async (req: any, reply: any) => {
+    const { baseUrl, apiKey } = req.body || {};
+
+    if (!baseUrl?.trim()) {
+      return { success: false, error: { ...FETCH_MODELS_ERRORS.MISSING_BASE_URL } };
+    }
+
+    const validation = validateBaseUrl(baseUrl);
+    if (!validation.valid) {
+      req.log.warn(`SSRF check failed for: ${String(baseUrl).substring(0, 60)}, reason: ${validation.error}`);
+      return { success: false, error: { ...FETCH_MODELS_ERRORS.INVALID_BASE_URL } };
+    }
+
+    if (!apiKey?.trim()) {
+      return { success: false, error: { ...FETCH_MODELS_ERRORS.MISSING_API_KEY } };
+    }
+
+    const candidates = buildModelsUrlCandidates(baseUrl);
+    let lastError = '';
+
+    for (const url of candidates) {
+      req.log.debug(`Trying models endpoint: ${url}`);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_MODELS_TIMEOUT_MS);
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          let models: Array<{ id: string; ownedBy: string | null }> = [];
+          if (data.data && Array.isArray(data.data)) {
+            models = data.data.map((m: any) => ({
+              id: String(m.id || ''),
+              ownedBy: m.owned_by || null,
+            }));
+          }
+          models.sort((a, b) => a.id.localeCompare(b.id));
+          return { success: true, models };
+        }
+
+        const body = await response.text().catch(() => '').then((t: string) => t.slice(0, 200));
+
+        if (response.status === 401 || response.status === 403) {
+          return { success: false, error: { ...FETCH_MODELS_ERRORS.AUTH_FAILED } };
+        }
+
+        if (response.status === 404 || response.status === 405) {
+          lastError = `HTTP ${response.status}`;
+          continue;
+        }
+
+        return {
+          success: false,
+          error: { code: 'UNKNOWN' as const, message: `HTTP ${response.status}: ${body}`.slice(0, 200) },
+        };
+
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          lastError = 'timeout';
+          continue;
+        }
+        return {
+          success: false,
+          error: { code: 'NETWORK_ERROR' as const, message: String(err.message || err).slice(0, 200) },
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: {
+        code: 'ENDPOINT_NOT_FOUND' as const,
+        message: `All endpoints failed: ${lastError}`.slice(0, 200),
+      },
+    };
+  });
 
   return server;
 };
