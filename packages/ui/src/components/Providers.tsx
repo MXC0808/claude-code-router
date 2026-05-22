@@ -648,8 +648,13 @@ export function Providers() {
                       apiKey={editingProvider.api_key || ''}
                       selectedModels={editingProvider.models || []}
                       onAddModels={(models) => {
-                        if (editingProviderIndex !== null) {
-                          models.forEach(m => handleAddModel(editingProviderIndex, m));
+                        if (editingProviderIndex !== null && editingProviderData) {
+                          const existing = Array.isArray(editingProviderData.models) ? editingProviderData.models : [];
+                          const deduplicated = models.filter(m => !existing.includes(m));
+                          if (deduplicated.length > 0) {
+                            const updatedProvider = { ...editingProviderData, models: [...existing, ...deduplicated] };
+                            setEditingProviderData(updatedProvider);
+                          }
                           setLocalToast({ message: t('providers.fetch_models_success', { count: models.length }), type: 'success' });
                         }
                       }}
