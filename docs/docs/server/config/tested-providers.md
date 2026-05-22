@@ -1,21 +1,21 @@
-# Tested Providers
+# 已测试供应商
 
-Providers verified in this fork for model fetching and request routing.
+本分支已验证的供应商列表（模型获取 + 请求路由）。
 
-| Provider | Model Fetching (UI) | Request Routing | Notes |
-|----------|:-------------------:|:---------------:|-------|
-| DeepSeek | Pass | Pass | Standard OpenAI-compatible API |
-| Gemini | Pass | Pass | Uses `?key=` auth, `/v1beta/models` endpoint |
-| Xiaomi (MiMo) | Pass | Pass | Requires `reasoning_content` transformer config; see [REASONING_CONTENT_FIX.md](../../../../REASONING_CONTENT_FIX.md) |
-| NVIDIA | Pass | Pass | OpenAI-compatible API |
+| 供应商 | UI 获取模型 | 请求路由 | 备注 |
+|--------|:-----------:|:--------:|------|
+| DeepSeek | 通过 | 通过 | 标准 OpenAI 兼容 API |
+| Gemini | 通过 | 通过 | 使用 `?key=` 认证，`/v1beta/models` 端点 |
+| 小米 (MiMo) | 通过 | 通过 | 需配置 `reasoning_content` transformer；参见 [reasoning_content修复文档](../../../../REASONING_CONTENT_FIX.md) |
+| 英伟达 | 通过 | 通过 | OpenAI 兼容 API |
 
-## Model Fetching Behavior
+## UI 获取模型的认证方式
 
-Each provider uses different authentication methods and response formats when listing models via the UI:
+各供应商在 UI 获取模型列表时使用的认证方式和响应格式：
 
-| Provider | Auth Method | Models Endpoint | Response Format |
-|----------|-------------|-----------------|-----------------|
-| DeepSeek | `Authorization: Bearer` | `{baseUrl}/models` | OpenAI format (`data[].id`) |
-| Gemini | `?key=` query param | `generativelanguage.googleapis.com/v1beta/models` | Gemini format (`models[].name`) |
-| Xiaomi | `Authorization: Bearer` | `{baseUrl}/v1/models` | OpenAI format |
-| NVIDIA | `Authorization: Bearer` | `{baseUrl}/v1/models` | OpenAI format |
+| 供应商 | 认证方式 | 模型端点 | 响应格式 |
+|--------|----------|----------|----------|
+| DeepSeek | `Authorization: Bearer` | `{baseUrl}/models` | OpenAI 格式 (`data[].id`) |
+| Gemini | `?key=` URL 查询参数 | `generativelanguage.googleapis.com/v1beta/models` | Gemini 格式 (`models[].name`) |
+| 小米 | `Authorization: Bearer` | `{baseUrl}/v1/models` | OpenAI 格式 |
+| 英伟达 | `Authorization: Bearer` | `{baseUrl}/v1/models` | OpenAI 格式 |
