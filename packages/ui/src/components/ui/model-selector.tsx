@@ -2,18 +2,10 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Check, RefreshCw, Search } from "lucide-react"
+import { Check, RefreshCw, Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
 import {
   Popover,
   PopoverContent,
@@ -27,6 +19,7 @@ interface ModelSelectorProps {
   apiKey: string;
   selectedModels: string[];
   onAddModels: (models: string[]) => void;
+  onRemoveModel?: (model: string) => void;
   onError?: (error: FetchModelsError) => void;
 }
 
@@ -37,6 +30,7 @@ export function ModelSelector({
   apiKey,
   selectedModels,
   onAddModels,
+  onRemoveModel,
   onError,
 }: ModelSelectorProps) {
   const { t } = useTranslation();
@@ -113,17 +107,34 @@ export function ModelSelector({
     setSelected(new Set());
   };
 
-  const filteredModels = React.useMemo(() => {
-    if (!searchQuery.trim()) return models;
-    const q = searchQuery.toLowerCase();
-    return models.filter(m => m.id.toLowerCase().includes(q));
-  }, [models, searchQuery]);
+  const uniqueModels = React.useMemo(() => {
+    const seen = new Set<string>();
+    return models.filter(m => {
+      const trimmed = m.id.trim();
+      if (!trimmed || seen.has(trimmed)) return false;
+      seen.add(trimmed);
+      return true;
+    });
+  }, [models]);
 
-  const selectableModels = filteredModels;
+  const filteredModels = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return uniqueModels;
+    return uniqueModels.filter(m => m.id.toLowerCase().includes(q));
+  }, [uniqueModels, searchQuery]);
+
+  const sortedModels = React.useMemo(() => {
+    return [...filteredModels].sort((a, b) => {
+      const aAdded = selectedModels.includes(a.id) ? 0 : 1;
+      const bAdded = selectedModels.includes(b.id) ? 0 : 1;
+      return aAdded - bAdded;
+    });
+  }, [filteredModels, selectedModels]);
+
   const hasNewSelections = Array.from(selected).some(m => !selectedModels.includes(m));
 
   return (
-    <Popover open={open} onOpenChange={(newOpen) => {
+    <Popover modal={false} open={open} onOpenChange={(newOpen) => {
       if (!newOpen) {
         setSelected(new Set());
       }
@@ -152,37 +163,73 @@ export function ModelSelector({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
+        <div className="flex items-center gap-2 border-b px-3 h-9">
+          <Search className="size-4 shrink-0 opacity-50" />
+          <input
+            className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
             placeholder={t("providers.search_models")}
             value={searchQuery}
-            onValueChange={setSearchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <CommandList>
-            <CommandEmpty>{t("providers.no_models_found")}</CommandEmpty>
-            <CommandGroup>
-              {selectableModels.map((model) => (
-                <CommandItem
-                  key={model.id}
-                  onSelect={() => handleToggleModel(model.id)}
-                >
-                  <Check
+        </div>
+        <div
+          className="max-h-[300px] overflow-y-auto"
+          onWheel={(e) => {
+            const el = e.currentTarget;
+            const atTop = el.scrollTop === 0;
+            const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight;
+            const goingUp = e.deltaY < 0;
+            const goingDown = e.deltaY > 0;
+            if ((goingUp && atTop) || (goingDown && atBottom)) return;
+            e.preventDefault();
+            el.scrollTop += e.deltaY;
+          }}
+        >
+          {sortedModels.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              {t("providers.no_models_found")}
+            </div>
+          ) : (
+            <div className="p-1">
+              {sortedModels.map((model) => {
+                const isAdded = selectedModels.includes(model.id);
+                const isSelected = selected.has(model.id);
+                return (
+                  <div
+                    key={model.id}
                     className={cn(
-                      "mr-2 h-4 w-4 shrink-0",
-                      selected.has(model.id) ? "opacity-100" : "opacity-0"
+                      "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-default select-none",
+                      isSelected && !isAdded && "bg-accent text-accent-foreground",
+                      isAdded && "opacity-60"
                     )}
-                  />
-                  <span className="flex-1 truncate">{model.id}</span>
-                  {selectedModels.includes(model.id) && (
-                    <Badge variant="outline" className="ml-2 text-xs text-gray-400">
-                      {t("providers.already_added")}
-                    </Badge>
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+                    onClick={() => !isAdded && handleToggleModel(model.id)}
+                  >
+                      {!isAdded && (
+                        <Check
+                          className={cn(
+                            "mr-1 h-4 w-4 shrink-0",
+                            isSelected ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      )}
+                      <span className="flex-1 truncate">{model.id}</span>
+                      {isAdded && onRemoveModel && (
+                        <button
+                          className="ml-1 p-0.5 rounded-sm hover:bg-destructive/10 hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveModel(model.id);
+                          }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         <div className="border-t p-2">
           <Button
             size="sm"

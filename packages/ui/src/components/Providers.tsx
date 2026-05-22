@@ -658,6 +658,13 @@ export function Providers() {
                           setLocalToast({ message: t('providers.fetch_models_success', { count: models.length }), type: 'success' });
                         }
                       }}
+                      onRemoveModel={(modelName) => {
+                        if (editingProviderData) {
+                          const existing = Array.isArray(editingProviderData.models) ? editingProviderData.models : [];
+                          const updatedProvider = { ...editingProviderData, models: existing.filter(m => m !== modelName) };
+                          setEditingProviderData(updatedProvider);
+                        }
+                      }}
                       onError={(error) => {
                         const errorKeyMap: Record<string, string> = {
                           'INVALID_BASE_URL': 'fetch_models_error_invalid_url',
