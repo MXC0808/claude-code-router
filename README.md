@@ -36,6 +36,14 @@ ccr code
 
 ## 变更记录
 
+#### v2.0.3
+
+fix：修复 UI 获取可用模型时 Gemini 认证失败的问题，改用 `?key=` 查询参数替代 `Authorization: Bearer` 头，并适配 Gemini 响应格式。
+
+fix：修复 UI 获取可用模型时 DeepSeek 等 provider 认证失败的问题，发送请求前解析 API Key 中的环境变量占位符（如 `$DEEPSEEK_API_KEY`）。
+
+fix：修复 UI 多选模型后点击添加只添加一个模型的问题，改为一次性批量添加。
+
 #### v2.0.2
 
 feat：路由配置页新增"应用全部"按钮，选择默认模型后可一键覆盖所有场景（后台、思考、长上下文、网络搜索、图像）。
