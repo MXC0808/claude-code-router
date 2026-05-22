@@ -70,9 +70,27 @@ function validateBaseUrl(baseUrl: string): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
+function isGeminiUrl(url: string): boolean {
+  return url.includes('generativelanguage.googleapis.com');
+}
+
+function appendApiKeyToUrl(url: string, apiKey: string): string {
+  const parsedUrl = new URL(url);
+  parsedUrl.searchParams.set('key', apiKey);
+  return parsedUrl.toString();
+}
+
 function buildModelsUrlCandidates(baseUrl: string): string[] {
   const trimmed = baseUrl.trim().replace(/\/+/g, '/').replace(/\/$/, '');
   const candidates = new Set<string>();
+
+  if (isGeminiUrl(trimmed)) {
+    const root = trimmed.replace(/\/(v1beta|v1|v1alpha)(\/models)?$/, '');
+    candidates.add(`${root}/v1beta/models`);
+    candidates.add(`${root}/v1/models`);
+    candidates.add(`${root}/models`);
+    return Array.from(candidates);
+  }
 
   if (trimmed.match(/\/(v1\/)?chat\/completions$/)) {
     const root = trimmed.replace(/\/(v1\/)?chat\/completions$/, '');
@@ -630,21 +648,31 @@ export const createServer = async (config: any): Promise<any> => {
       return { success: false, error: { ...FETCH_MODELS_ERRORS.MISSING_API_KEY } };
     }
 
+    // Resolve environment variable placeholders in apiKey (e.g. $VAR_NAME, ${VAR_NAME})
+    const resolvedApiKey = apiKey.replace(/\$\{([^}]+)\}|\$([A-Z_][A-Z0-9_]*)/g, (match: string, braced: string, unbraced: string) => {
+      const varName = braced || unbraced;
+      return process.env[varName] || match;
+    });
+
+    const isGemini = isGeminiUrl(baseUrl);
     const candidates = buildModelsUrlCandidates(baseUrl);
     let lastError = '';
 
     for (const url of candidates) {
-      req.log.debug(`Trying models endpoint: ${url}`);
+      req.log.debug(`Trying models endpoint: ${url}${isGemini ? ' (gemini, key in URL)' : ''}`);
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), FETCH_MODELS_TIMEOUT_MS);
 
-        const response = await fetch(url, {
+        const fetchUrl = isGemini ? appendApiKeyToUrl(url, resolvedApiKey) : url;
+        const headers: Record<string, string> = { 'Accept': 'application/json' };
+        if (!isGemini) {
+          headers['Authorization'] = `Bearer ${resolvedApiKey}`;
+        }
+
+        const response = await fetch(fetchUrl, {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Accept': 'application/json',
-          },
+          headers,
           signal: controller.signal,
         });
 
@@ -653,12 +681,22 @@ export const createServer = async (config: any): Promise<any> => {
         if (response.ok) {
           const data = await response.json();
           let models: Array<{ id: string; ownedBy: string | null }> = [];
-          if (data.data && Array.isArray(data.data)) {
+
+          if (isGemini && data.models && Array.isArray(data.models)) {
+            models = data.models.map((m: any) => {
+              const name: string = String(m.name || '');
+              return {
+                id: name.startsWith('models/') ? name.slice('models/'.length) : name,
+                ownedBy: m.ownedBy || null,
+              };
+            });
+          } else if (data.data && Array.isArray(data.data)) {
             models = data.data.map((m: any) => ({
               id: String(m.id || ''),
               ownedBy: m.owned_by || null,
             }));
           }
+
           models.sort((a, b) => a.id.localeCompare(b.id));
           return { success: true, models };
         }
