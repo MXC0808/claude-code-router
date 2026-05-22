@@ -36,25 +36,17 @@ ccr code
 
 ## 变更记录
 
-#### v2.0.3
-
-fix：修复 UI 获取可用模型时 Gemini 认证失败的问题，改用 `?key=` 查询参数替代 `Authorization: Bearer` 头，并适配 Gemini 响应格式。
-
-fix：修复 UI 获取可用模型时 DeepSeek 等 provider 认证失败的问题，发送请求前解析 API Key 中的环境变量占位符（如 `$DEEPSEEK_API_KEY`）。
-
-fix：修复 UI 多选模型后点击添加只添加一个模型的问题，改为一次性批量添加。
-
 #### v2.0.1
 
-feat:编辑供应商新增获取可用模型列表的功能，方便用户快速选择模型; [已测试供应商文档](docs/docs/server/config/tested-providers.md)
+feat: 编辑供应商新增获取可用模型列表的功能，方便用户快速选择模型 [供应商获取模型测试状态](docs/docs/server/config/tested-providers.md)
 
-feat：路由配置页新增快速填充功能-"应用全部"按钮，选择默认模型后可一键覆盖所有场景（后台、思考、长上下文、网络搜索、图像）。
+feat：路由配置页新增快速填充功能-"应用全部"按钮，选择默认模型后可一键覆盖所有场景（后台、思考、长上下文、网络搜索、图像）
 
-feat：添加 Mistral、Codex、Chrome 设备端提供商；修复 Gemini/DeepSeek 流媒体播放和推理问题;   [#pr-1393](https://github.com/musistudio/claude-code-router/pull/1393)
+feat：添加 Mistral、Codex、Chrome 设备端提供商；修复 Gemini/DeepSeek 流媒体播放和推理问题;  [#pr-1393](https://github.com/musistudio/claude-code-router/pull/1393)
 
 fix: 修复了调用小米 mimo模型报400 reasoning_content的问题 ; 查看[reasoning_content修复文档](REASONING_CONTENT_FIX.md)添加相关配置
 
-fix：优化了~/.claude-code-router/config.json 文件的权限;  [#pr-1399](https://github.com/musistudio/claude-code-router/pull/1399)
+fix：优化了~/.claude-code-router/config.json 文件的权限  [#pr-1399](https://github.com/musistudio/claude-code-router/pull/1399)
 
 ## 📚 文档
 

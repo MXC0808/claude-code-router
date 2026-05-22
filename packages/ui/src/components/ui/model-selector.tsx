@@ -164,7 +164,6 @@ export function ModelSelector({
               {selectableModels.map((model) => (
                 <CommandItem
                   key={model.id}
-                  value={model.id}
                   onSelect={() => handleToggleModel(model.id)}
                 >
                   <Check
