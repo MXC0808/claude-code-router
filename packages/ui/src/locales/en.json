@@ -118,7 +118,17 @@
     "fetch_models_error_network": "Network error. Please check your connection.",
     "fetch_models_error_unknown": "Failed to fetch models.",
     "fetch_models_pre_check_url": "Please enter the API Base URL first.",
-    "fetch_models_pre_check_key": "Please enter the API Key first."
+    "fetch_models_pre_check_key": "Please enter the API Key first.",
+    "test_model": "Test Model",
+    "select_model_to_test": "Select a model to test",
+    "test_successful": "Test successful! Latency: {{latency}}ms",
+    "test_failed": "Test failed",
+    "test_failed_model_not_found": "Model not found or unavailable",
+    "test_failed_auth": "Authentication failed. Please check your API Key.",
+    "test_failed_timeout": "Request timeout. The model may be too slow to respond.",
+    "test_failed_network": "Network error. Please check your connection.",
+    "test_failed_unknown": "Test failed. Please try again.",
+    "no_models_available": "No models configured. Please add models first."
 
   },
   "router": {

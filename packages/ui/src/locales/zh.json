@@ -118,7 +118,17 @@
     "fetch_models_error_network": "网络错误，请检查网络连接",
     "fetch_models_error_unknown": "获取模型失败",
     "fetch_models_pre_check_url": "请先填写 API Base URL",
-    "fetch_models_pre_check_key": "请先填写 API Key"
+    "fetch_models_pre_check_key": "请先填写 API Key",
+    "test_model": "测试模型",
+    "select_model_to_test": "选择要测试的模型",
+    "test_successful": "测试成功！延迟：{{latency}}ms",
+    "test_failed": "测试失败",
+    "test_failed_model_not_found": "模型不存在或不可用",
+    "test_failed_auth": "认证失败，请检查 API Key",
+    "test_failed_timeout": "请求超时，模型可能响应太慢",
+    "test_failed_network": "网络错误，请检查网络连接",
+    "test_failed_unknown": "测试失败，请重试",
+    "no_models_available": "没有配置模型，请先添加模型"
 
   },
   "router": {

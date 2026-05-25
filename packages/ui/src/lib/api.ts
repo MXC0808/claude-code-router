@@ -44,6 +44,13 @@ export class FetchModelsAPIError extends Error {
   }
 }
 
+// Types for provider test feature
+export interface TestProviderResponse {
+  success: boolean;
+  latency?: number;
+  error?: { code: string; message: string };
+}
+
 // API Client Class for handling requests with baseUrl and apikey authentication
 class ApiClient {
   private baseUrl: string;
@@ -363,6 +370,15 @@ class ApiClient {
     }
 
     return response.models || [];
+  }
+
+  // Test a provider model connection
+  async testProviderModel(baseUrl: string, apiKey: string, model: string): Promise<TestProviderResponse> {
+    return this.post<TestProviderResponse>('/providers/test', {
+      baseUrl,
+      apiKey,
+      model,
+    });
   }
 }
 

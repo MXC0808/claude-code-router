@@ -27,6 +27,7 @@ import AdmZip from "adm-zip";
 import { registerCodexAuthRoutes } from "./routes/codex-auth";
 
 const FETCH_MODELS_TIMEOUT_MS = 15000;
+const PROVIDER_TEST_TIMEOUT_MS = 30000;
 
 const FETCH_MODELS_ERRORS = {
   MISSING_BASE_URL: { code: 'MISSING_BASE_URL' as const, message: 'API Base URL is required' },
@@ -37,6 +38,18 @@ const FETCH_MODELS_ERRORS = {
   TIMEOUT: { code: 'TIMEOUT' as const, message: 'Request timeout. Please try again.' },
   NETWORK_ERROR: { code: 'NETWORK_ERROR' as const, message: 'Network error. Please check your connection.' },
   UNKNOWN: { code: 'UNKNOWN' as const, message: 'Failed to fetch models.' },
+} as const;
+
+const PROVIDER_TEST_ERRORS = {
+  MISSING_BASE_URL: { code: 'MISSING_BASE_URL' as const, message: 'API Base URL is required' },
+  MISSING_API_KEY: { code: 'MISSING_API_KEY' as const, message: 'API Key is required' },
+  MISSING_MODEL: { code: 'MISSING_MODEL' as const, message: 'Model is required' },
+  INVALID_BASE_URL: { code: 'INVALID_BASE_URL' as const, message: 'Invalid base URL. Please check the address.' },
+  AUTH_FAILED: { code: 'AUTH_FAILED' as const, message: 'Authentication failed. Please check your API Key.' },
+  MODEL_NOT_FOUND: { code: 'MODEL_NOT_FOUND' as const, message: 'Model not found or unavailable.' },
+  TIMEOUT: { code: 'TIMEOUT' as const, message: 'Request timeout. The model may be too slow to respond.' },
+  NETWORK_ERROR: { code: 'NETWORK_ERROR' as const, message: 'Network error. Please check your connection.' },
+  UNKNOWN: { code: 'UNKNOWN' as const, message: 'Test failed.' },
 } as const;
 
 const COMPAT_SUFFIXES = [
@@ -736,6 +749,105 @@ export const createServer = async (config: any): Promise<any> => {
         message: `All endpoints failed: ${lastError}`.slice(0, 200),
       },
     };
+  });
+
+  // Test provider model connectivity
+  app.post('/api/providers/test', async (req: any, reply: any) => {
+    const { baseUrl, apiKey, model } = req.body || {};
+
+    if (!baseUrl?.trim()) {
+      return { success: false, error: { ...PROVIDER_TEST_ERRORS.MISSING_BASE_URL } };
+    }
+
+    const validation = validateBaseUrl(baseUrl);
+    if (!validation.valid) {
+      req.log.warn(`SSRF check failed for test: ${String(baseUrl).substring(0, 60)}, reason: ${validation.error}`);
+      return { success: false, error: { ...PROVIDER_TEST_ERRORS.INVALID_BASE_URL } };
+    }
+
+    if (!apiKey?.trim()) {
+      return { success: false, error: { ...PROVIDER_TEST_ERRORS.MISSING_API_KEY } };
+    }
+
+    if (!model?.trim()) {
+      return { success: false, error: { ...PROVIDER_TEST_ERRORS.MISSING_MODEL } };
+    }
+
+    // Resolve environment variable placeholders in apiKey
+    const resolvedApiKey = apiKey.replace(/\$\{([^}]+)\}|\$([A-Z_][A-Z0-9_]*)/g, (match: string, braced: string, unbraced: string) => {
+      const varName = braced || unbraced;
+      return process.env[varName] || match;
+    });
+
+    const isGemini = isGeminiUrl(baseUrl);
+
+    let fetchUrl: string;
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+
+    if (isGemini) {
+      const trimmedBase = baseUrl.trim().replace(/\/+$/, '');
+      fetchUrl = appendApiKeyToUrl(`${trimmedBase}/models/${encodeURIComponent(model)}:generateContent`, resolvedApiKey);
+    } else {
+      const trimmedBase = baseUrl.trim().replace(/\/+$/, '');
+      let chatUrl = trimmedBase;
+      if (!chatUrl.endsWith('/chat/completions')) {
+        chatUrl = `${chatUrl}/chat/completions`;
+      }
+      fetchUrl = chatUrl;
+      headers['Authorization'] = `Bearer ${resolvedApiKey}`;
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TEST_TIMEOUT_MS);
+
+      const body = isGemini
+        ? JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Hi' }] }], generationConfig: { maxOutputTokens: 1 } })
+        : JSON.stringify({ model, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 });
+
+      const response = await fetch(fetchUrl, {
+        method: 'POST',
+        headers,
+        body,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const latency = Date.now() - startTime;
+
+      if (response.ok) {
+        return { success: true, latency };
+      }
+
+      const responseBody = await response.text().catch(() => '').then((t: string) => t.slice(0, 500));
+
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: { ...PROVIDER_TEST_ERRORS.AUTH_FAILED } };
+      }
+
+      if (response.status === 404) {
+        return { success: false, error: { ...PROVIDER_TEST_ERRORS.MODEL_NOT_FOUND } };
+      }
+
+      return {
+        success: false,
+        error: { code: 'UNKNOWN' as const, message: `HTTP ${response.status}: ${responseBody}`.slice(0, 200) },
+      };
+
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return { success: false, error: { ...PROVIDER_TEST_ERRORS.TIMEOUT } };
+      }
+      return {
+        success: false,
+        error: { code: 'NETWORK_ERROR' as const, message: String(err.message || err).slice(0, 200) },
+      };
+    }
   });
 
   return server;

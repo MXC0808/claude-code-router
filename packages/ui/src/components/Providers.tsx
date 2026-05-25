@@ -543,6 +543,7 @@ export function Providers() {
         <ProviderList
           providers={filteredProviders}
           onEdit={handleEditProvider}
+          onTest={() => {}} // TODO: wire up in provider test feature task
           onRemove={handleSetDeletingProviderIndex}
         />
       </CardContent>
