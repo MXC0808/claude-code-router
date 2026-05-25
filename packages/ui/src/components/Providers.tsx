@@ -14,12 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Trash2, Plus, Eye, EyeOff, Search, XCircle } from "lucide-react";
+import { X, Trash2, Plus, Eye, EyeOff, Search, XCircle, Wifi } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/ui/combobox";
 import { ModelSelector } from "@/components/ui/model-selector";
 import { Toast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
+import type { TestProviderResponse } from "@/lib/api";
 import type { Provider } from "@/types";
 
 interface ProviderType extends Provider {}
@@ -40,6 +41,10 @@ export function Providers() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [localToast, setLocalToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  const [testingProviderIndex, setTestingProviderIndex] = useState<number | null>(null);
+  const [testingModel, setTestingModel] = useState<string>("");
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestProviderResponse | null>(null);
 
   useEffect(() => {
     const fetchProviderTemplates = async () => {
@@ -205,6 +210,63 @@ export function Providers() {
     newProviders.splice(actualIndex, 1);
     setConfig({ ...config, Providers: newProviders });
     setDeletingProviderIndex(null);
+  };
+
+  const handleTestProvider = (filteredIndex: number) => {
+    const actualIndex = validProviders.indexOf(filteredProviders[filteredIndex]);
+    const provider = config.Providers[actualIndex];
+    if (!provider) return;
+
+    if (!provider.api_base_url?.trim()) {
+      setLocalToast({ message: t("providers.fetch_models_pre_check_url"), type: 'warning' });
+      return;
+    }
+    if (!provider.api_key?.trim()) {
+      setLocalToast({ message: t("providers.fetch_models_pre_check_key"), type: 'warning' });
+      return;
+    }
+    if (!Array.isArray(provider.models) || provider.models.length === 0) {
+      setLocalToast({ message: t("providers.no_models_available"), type: 'warning' });
+      return;
+    }
+
+    setTestingProviderIndex(actualIndex);
+    setTestingModel("");
+    setTestResult(null);
+    setIsTesting(false);
+  };
+
+  const handleRunTest = async () => {
+    if (testingProviderIndex === null || !testingModel) return;
+
+    const provider = config.Providers[testingProviderIndex];
+    if (!provider) return;
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const result = await api.testProviderModel(
+        provider.api_base_url,
+        provider.api_key,
+        testingModel
+      );
+      setTestResult(result);
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        error: { code: 'UNKNOWN', message: String(err.message || err) },
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleCloseTestDialog = () => {
+    setTestingProviderIndex(null);
+    setTestingModel("");
+    setTestResult(null);
+    setIsTesting(false);
   };
 
   const handleProviderChange = (_index: number, field: string, value: string) => {
@@ -543,7 +605,7 @@ export function Providers() {
         <ProviderList
           providers={filteredProviders}
           onEdit={handleEditProvider}
-          onTest={() => {}} // TODO: wire up in provider test feature task
+          onTest={handleTestProvider}
           onRemove={handleSetDeletingProviderIndex}
         />
       </CardContent>
@@ -1018,17 +1080,73 @@ export function Providers() {
           )}
           <div className="space-y-3 mt-auto">
             <div className="flex justify-end gap-2">
-              {/* <Button 
-                variant="outline" 
-                onClick={() => editingProvider && testConnectivity(editingProvider)}
-                disabled={isTestingConnectivity || !editingProvider}
-              >
-                <Wifi className="mr-2 h-4 w-4" />
-                {isTestingConnectivity ? t("providers.testing") : t("providers.test_connectivity")}
-              </Button> */}
               <Button onClick={handleSaveProvider}>{t("app.save")}</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Test Dialog */}
+      <Dialog open={testingProviderIndex !== null} onOpenChange={(open) => {
+        if (!open) handleCloseTestDialog();
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("providers.test_connectivity")}</DialogTitle>
+          </DialogHeader>
+          {testingProviderIndex !== null && (
+            <div className="space-y-4 p-4">
+              <div className="space-y-2">
+                <Label>{t("providers.select_model_to_test")}</Label>
+                <select
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  value={testingModel}
+                  onChange={(e) => {
+                    setTestingModel(e.target.value);
+                    setTestResult(null);
+                  }}
+                >
+                  <option value="">{t("providers.select_model_to_test")}</option>
+                  {(config.Providers[testingProviderIndex]?.models || []).map((model: string) => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
+              </div>
+
+              {testResult && (
+                <div className={`rounded-md p-3 text-sm ${
+                  testResult.success
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {testResult.success
+                    ? t("providers.test_successful", { latency: testResult.latency })
+                    : (() => {
+                        const errorKeyMap: Record<string, string> = {
+                          'AUTH_FAILED': 'test_failed_auth',
+                          'MODEL_NOT_FOUND': 'test_failed_model_not_found',
+                          'TIMEOUT': 'test_failed_timeout',
+                          'NETWORK_ERROR': 'test_failed_network',
+                          'UNKNOWN': 'test_failed_unknown',
+                        };
+                        const i18nKey = errorKeyMap[testResult.error?.code || ''] || 'test_failed_unknown';
+                        return t(`providers.${i18nKey}`);
+                      })()
+                  }
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseTestDialog}>{t("app.cancel")}</Button>
+            <Button
+              onClick={handleRunTest}
+              disabled={!testingModel || isTesting}
+            >
+              <Wifi className="mr-2 h-4 w-4" />
+              {isTesting ? t("providers.testing") : t("providers.test_model")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
