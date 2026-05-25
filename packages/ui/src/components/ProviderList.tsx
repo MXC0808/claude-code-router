@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Wifi, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Provider } from "@/types";
@@ -6,10 +6,11 @@ import type { Provider } from "@/types";
 interface ProviderListProps {
   providers: Provider[];
   onEdit: (index: number) => void;
+  onTest: (index: number) => void;
   onRemove: (index: number) => void;
 }
 
-export function ProviderList({ providers, onEdit, onRemove }: ProviderListProps) {
+export function ProviderList({ providers, onEdit, onTest, onRemove }: ProviderListProps) {
   // Handle case where providers might be null or undefined
   if (!providers || !Array.isArray(providers)) {
     return (
@@ -33,6 +34,9 @@ export function ProviderList({ providers, onEdit, onRemove }: ProviderListProps)
                 <p className="text-sm text-gray-500">Provider data is missing</p>
               </div>
               <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => onTest(index)} className="transition-all-ease hover:scale-110" disabled>
+                  <Wifi className="h-4 w-4" />
+                </Button>
                 <Button variant="ghost" size="icon" onClick={() => onEdit(index)} className="transition-all-ease hover:scale-110" disabled>
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -68,6 +72,9 @@ export function ProviderList({ providers, onEdit, onRemove }: ProviderListProps)
               </div>
             </div>
             <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => onTest(index)} className="transition-all-ease hover:scale-110">
+                <Wifi className="h-4 w-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => onEdit(index)} className="transition-all-ease hover:scale-110">
                 <Pencil className="h-4 w-4" />
               </Button>
