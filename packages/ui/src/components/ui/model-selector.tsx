@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Check, RefreshCw, Search, X } from "lucide-react"
+import { RefreshCw, Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -162,7 +162,7 @@ export function ModelSelector({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent className="w-80 p-0" align="start" side="bottom" sideOffset={4} avoidCollisions={false}>
         <div className="flex items-center gap-2 border-b px-3 h-9">
           <Search className="size-4 shrink-0 opacity-50" />
           <input
@@ -198,35 +198,34 @@ export function ModelSelector({
                   <div
                     key={model.id}
                     className={cn(
-                      "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-default select-none",
-                      isSelected && !isAdded && "bg-accent text-accent-foreground",
-                      isAdded && "opacity-60"
+                      "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer select-none hover:bg-accent/50",
+                      isSelected && !isAdded && "bg-accent",
+                      isAdded && "opacity-55"
                     )}
                     onClick={() => !isAdded && handleToggleModel(model.id)}
                   >
-                      {!isAdded && (
-                        <Check
-                          className={cn(
-                            "mr-1 h-4 w-4 shrink-0",
-                            isSelected ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                      )}
-                      <span className="flex-1 truncate">{model.id}</span>
-                      {isAdded && onRemoveModel && (
-                        <button
-                          className="ml-1 p-0.5 rounded-sm hover:bg-destructive/10 hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveModel(model.id);
-                          }}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                    <input
+                      type="checkbox"
+                      checked={isAdded || isSelected}
+                      disabled={isAdded}
+                      readOnly
+                      className="w-4 h-4 rounded border-gray-300 shrink-0 pointer-events-none"
+                    />
+                    <span className="flex-1 truncate">{model.id}</span>
+                    {isAdded && onRemoveModel && (
+                      <button
+                        className="p-0.5 rounded-sm hover:bg-destructive/10 hover:text-destructive text-gray-400"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveModel(model.id);
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
               </div>
             )}
           </div>
