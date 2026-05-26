@@ -38,6 +38,8 @@ ccr code
 
 #### v2.0.1
 
+feat: 供应商列表新增测试按钮，选择模型后通过最小化 chat completion 请求验证模型是否可用（`max_tokens: 1`)
+
 feat: 编辑供应商新增获取可用模型列表的功能，方便用户快速选择模型 [供应商获取模型测试状态](docs/docs/server/config/tested-providers.md)
 
 feat：路由配置页新增快速填充功能-"应用全部"按钮，选择默认模型后可一键覆盖所有场景（后台、思考、长上下文、网络搜索、图像）
