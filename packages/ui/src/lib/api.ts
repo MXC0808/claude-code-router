@@ -123,14 +123,9 @@ class ApiClient {
 
       // Handle 401 Unauthorized responses
       if (response.status === 401) {
-        // Remove API key when it's invalid
         localStorage.removeItem('apiKey');
-        // Redirect to login page if not already there
-        // For memory router, we need to use the router instance
-        // We'll dispatch a custom event that the app can listen to
         window.dispatchEvent(new CustomEvent('unauthorized'));
-        // Return a promise that never resolves to prevent further execution
-        return new Promise(() => {}) as Promise<T>;
+        throw new Error('Unauthorized: invalid or missing API key');
       }
 
       if (!response.ok) {
@@ -329,7 +324,7 @@ class ApiClient {
     if (response.status === 401) {
       localStorage.removeItem('apiKey');
       window.dispatchEvent(new CustomEvent('unauthorized'));
-      return new Promise(() => {}) as any;
+      throw new Error('Unauthorized: invalid or missing API key');
     }
 
     if (!response.ok) {

@@ -135,6 +135,21 @@ function buildModelsUrlCandidates(baseUrl: string): string[] {
   return Array.from(candidates);
 }
 
+const SENSITIVE_HEADER_KEYS = ['authorization', 'x-api-key', 'x-temp-api-key'];
+
+function redactSensitiveHeaders(headers: any): any {
+  if (!headers || typeof headers !== 'object') return headers;
+  const entries = headers instanceof Headers
+    ? Object.fromEntries(headers.entries())
+    : { ...headers };
+  for (const key of Object.keys(entries)) {
+    if (SENSITIVE_HEADER_KEYS.includes(key.toLowerCase())) {
+      entries[key] = '[REDACTED]';
+    }
+  }
+  return entries;
+}
+
 export const createServer = async (config: any): Promise<any> => {
   const server = new Server(config);
   const app = server.app;
@@ -153,7 +168,7 @@ export const createServer = async (config: any): Promise<any> => {
     app.log.debug({
       url,
       method: options.method || 'GET',
-      headers: options.headers,
+      headers: redactSensitiveHeaders(options.headers),
     }, 'Upstream Provider Request');
 
     try {

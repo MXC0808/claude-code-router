@@ -17,6 +17,7 @@
     "config_saved_failed": "配置保存失败",
     "config_saved_restart_success": "配置保存并服务重启成功",
     "config_saved_restart_failed": "配置保存并服务重启失败",
+    "config_missing": "未找到配置，请检查服务是否正在运行。",
     "new_version_available": "有新版本可用",
     "update_description": "发现新版本。请查看更新日志并更新以获取最新功能和改进。",
     "no_changelog_available": "暂无更新日志",

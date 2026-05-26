@@ -717,7 +717,7 @@ export class CodexTransformer implements Transformer {
       });
     }
 
-    this.logger.debug({
+    this.logger?.debug({
       data: annotations,
       type: "url_citation",
     });
