@@ -275,7 +275,7 @@ export function Providers() {
     }
 
     setTestingProviderIndex(actualIndex);
-    setTestingModel("");
+    setTestingModel(provider.models[0] ?? "");
     setTestResult(null);
     setIsTesting(false);
   };
