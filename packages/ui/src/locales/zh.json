@@ -128,7 +128,12 @@
     "test_failed_timeout": "请求超时，模型可能响应太慢",
     "test_failed_network": "网络错误，请检查网络连接",
     "test_failed_unknown": "测试失败，请重试",
-    "no_models_available": "没有配置模型，请先添加模型"
+    "no_models_available": "没有配置模型，请先添加模型",
+    "copy": "复制",
+    "copy_success": "供应商复制成功",
+    "test": "测试",
+    "edit": "编辑",
+    "delete": "删除"
 
   },
   "router": {

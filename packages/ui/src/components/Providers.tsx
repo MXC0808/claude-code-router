@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { ModelSelector } from "@/components/ui/model-selector";
 import { Toast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import type { TestProviderResponse } from "@/lib/api";
-import type { Provider } from "@/types";
+import type { Provider, Config } from "@/types";
 
 interface ProviderType extends Provider {}
 
@@ -45,6 +45,21 @@ export function Providers() {
   const [testingModel, setTestingModel] = useState<string>("");
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestProviderResponse | null>(null);
+
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  const persistConfig = useCallback(
+    (newConfig: Config) => {
+      saveChainRef.current = saveChainRef.current
+        .catch(() => {})
+        .then(() => api.updateConfig(newConfig))
+        .catch((err) => {
+          console.error("Failed to auto-save config:", err);
+          setLocalToast({ message: t("app.config_saved_failed"), type: "error" });
+        });
+    },
+    [t]
+  );
 
   useEffect(() => {
     const fetchProviderTemplates = async () => {
@@ -110,6 +125,31 @@ export function Providers() {
     setNameError(null);
   };
 
+  const handleCopyProvider = (index: number) => {
+    const actualIndex = validProviders.indexOf(filteredProviders[index]);
+    if (actualIndex === -1) return;
+    const source = config.Providers[actualIndex];
+    if (!source) return;
+    const baseName = `${source.name}_copy`;
+    const existingNames = new Set(config.Providers.map((p) => p.name.toLowerCase()));
+    let uniqueName = baseName;
+    let counter = 0;
+    while (existingNames.has(uniqueName.toLowerCase())) {
+      counter++;
+      uniqueName = `${baseName}_${counter}`;
+    }
+    const copied: ProviderType = {
+      ...JSON.parse(JSON.stringify(source)),
+      name: uniqueName,
+    };
+    const newProviders = [...config.Providers];
+    newProviders.splice(actualIndex + 1, 0, copied);
+    const newConfig = { ...config, Providers: newProviders };
+    setConfig(newConfig);
+    setLocalToast({ message: t("providers.copy_success"), type: "success" });
+    persistConfig(newConfig);
+  };
+
   const handleEditProvider = (index: number) => {
     // Find the actual index in the original providers array
     const actualIndex = validProviders.indexOf(filteredProviders[index]);
@@ -167,7 +207,9 @@ export function Providers() {
       } else {
         newProviders[editingProviderIndex] = editingProviderData;
       }
-      setConfig({ ...config, Providers: newProviders });
+      const newConfig = { ...config, Providers: newProviders };
+      setConfig(newConfig);
+      persistConfig(newConfig);
     }
     // Reset API key visibility for this provider
     if (editingProviderIndex !== null) {
@@ -208,7 +250,9 @@ export function Providers() {
     const actualIndex = validProviders.indexOf(filteredProviders[filteredIndex]);
     const newProviders = [...config.Providers];
     newProviders.splice(actualIndex, 1);
-    setConfig({ ...config, Providers: newProviders });
+    const newConfig = { ...config, Providers: newProviders };
+    setConfig(newConfig);
+    persistConfig(newConfig);
     setDeletingProviderIndex(null);
   };
 
@@ -607,6 +651,7 @@ export function Providers() {
           onEdit={handleEditProvider}
           onTest={handleTestProvider}
           onRemove={handleSetDeletingProviderIndex}
+          onCopy={handleCopyProvider}
         />
       </CardContent>
 

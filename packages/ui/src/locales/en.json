@@ -128,7 +128,12 @@
     "test_failed_timeout": "Request timeout. The model may be too slow to respond.",
     "test_failed_network": "Network error. Please check your connection.",
     "test_failed_unknown": "Test failed. Please try again.",
-    "no_models_available": "No models configured. Please add models first."
+    "no_models_available": "No models configured. Please add models first.",
+    "copy": "Copy",
+    "copy_success": "Provider copied successfully",
+    "test": "Test",
+    "edit": "Edit",
+    "delete": "Delete"
 
   },
   "router": {
