@@ -804,7 +804,9 @@ export const createServer = async (config: any): Promise<any> => {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TEST_TIMEOUT_MS);
+      const configTimeout = parseInt(config.API_TIMEOUT_MS) || 0;
+      const testTimeout = Math.max(configTimeout, PROVIDER_TEST_TIMEOUT_MS);
+      const timeoutId = setTimeout(() => controller.abort(), testTimeout);
 
       const body = isGemini
         ? JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Hi' }] }], generationConfig: { maxOutputTokens: 1 } })
