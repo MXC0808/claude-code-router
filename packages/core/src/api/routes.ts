@@ -13,6 +13,7 @@ import { ConfigService } from "@/services/config";
 import { ProviderService } from "@/services/provider";
 import { TransformerService } from "@/services/transformer";
 import { Transformer } from "@/types/transformer";
+import { RETRYABLE_STATUS_CODES } from "@/services/api-key-pool";
 
 // Extend FastifyInstance to include custom services
 declare module "fastify" {
@@ -296,12 +297,84 @@ function shouldBypassTransformers(
 
 /**
  * Send request to LLM provider
- * Handle authentication, build request config, send request and handle errors
+ * Handles key pool rotation when provider has multiple API keys
  */
 async function sendRequestToProvider(
   requestBody: any,
   config: any,
   provider: any,
+  fastify: FastifyInstance,
+  bypass: boolean,
+  transformer: any,
+  context: any
+) {
+  const pool = provider.apiKeyPool;
+
+  if (pool) {
+    return sendWithKeyPool(requestBody, config, provider, fastify, bypass, transformer, context, pool);
+  }
+
+  return doSendRequest(requestBody, config, provider, provider.apiKey, fastify, bypass, transformer, context);
+}
+
+/**
+ * Send request with automatic key rotation on retryable failures
+ * Tries each available key in the pool until one succeeds or all are exhausted
+ */
+async function sendWithKeyPool(
+  requestBody: any,
+  config: any,
+  provider: any,
+  fastify: FastifyInstance,
+  bypass: boolean,
+  transformer: any,
+  context: any,
+  pool: any
+) {
+  const totalKeys = pool.getStatus().total;
+  let lastError: any;
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const apiKey = pool.getNext();
+
+    try {
+      const response = await doSendRequest(requestBody, config, provider, apiKey, fastify, bypass, transformer, context);
+      return response;
+    } catch (error: any) {
+      if (error.statusCode && RETRYABLE_STATUS_CODES.has(error.statusCode)) {
+        fastify.log.warn(
+          `[key_pool] Key for provider ${provider.name} returned ${error.statusCode}, rotating to next key`
+        );
+        pool.markFailed(apiKey, error.statusCode);
+        lastError = error;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  const poolStatus = pool.getStatus();
+  fastify.log.error(
+    `[key_pool] All ${poolStatus.total} keys exhausted for provider ${provider.name}`
+  );
+  throw createApiError(
+    `All API keys exhausted for provider ${provider.name}`,
+    lastError?.statusCode || 429,
+    "api_keys_exhausted",
+    "api_error",
+    lastError?.headers
+  );
+}
+
+/**
+ * Core request sending logic for a single API key
+ * Handles authentication, headers, Retry-After parsing, and error responses
+ */
+async function doSendRequest(
+  requestBody: any,
+  config: any,
+  provider: any,
+  apiKey: string,
   fastify: FastifyInstance,
   bypass: boolean,
   transformer: any,
@@ -333,10 +406,9 @@ async function sendRequestToProvider(
     }
   }
 
-  // Send HTTP request
   // Prepare headers
   const requestHeaders: Record<string, string> = {
-    Authorization: `Bearer ${provider.apiKey}`,
+    Authorization: `Bearer ${apiKey}`,
     ...(config?.headers || {}),
   };
 
