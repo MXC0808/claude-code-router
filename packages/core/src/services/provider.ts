@@ -6,8 +6,9 @@ import {
   RequestRouteInfo,
   ConfigProvider,
 } from "../types/llm";
-import { ConfigService } from "./config"; 
+import { ConfigService } from "./config";
 import { TransformerService } from "./transformer";
+import { ApiKeyPool } from "./api-key-pool";
 
 export class ProviderService {
   private providers: Map<string, LLMProvider> = new Map();
@@ -32,7 +33,7 @@ export class ProviderService {
         if (
           !providerConfig.name ||
           !providerConfig.api_base_url ||
-          !providerConfig.api_key
+          (!providerConfig.api_key && !providerConfig.api_keys?.length)
         ) {
           return;
         }
@@ -99,10 +100,23 @@ export class ProviderService {
           })
         }
 
+        let apiKey: string;
+        let apiKeyPool: ApiKeyPool | undefined;
+
+        if (providerConfig.api_keys?.length === 1) {
+          apiKey = providerConfig.api_keys[0];
+        } else if (providerConfig.api_keys && providerConfig.api_keys.length > 1) {
+          apiKeyPool = new ApiKeyPool(providerConfig.api_keys);
+          apiKey = apiKeyPool.getNext();
+        } else {
+          apiKey = providerConfig.api_key!;
+        }
+
         this.registerProvider({
           name: providerConfig.name,
           baseUrl: providerConfig.api_base_url,
-          apiKey: providerConfig.api_key,
+          apiKey,
+          apiKeyPool,
           models: providerConfig.models || [],
           transformer: providerConfig.transformer ? transformer : undefined,
         });
