@@ -305,7 +305,7 @@ export function Providers() {
       setLocalToast({ message: t("providers.fetch_models_pre_check_url"), type: 'warning' });
       return;
     }
-    if (!provider.api_key?.trim()) {
+    if (!provider.api_key?.trim() && (!Array.isArray(provider.api_keys) || provider.api_keys.length === 0)) {
       setLocalToast({ message: t("providers.fetch_models_pre_check_key"), type: 'warning' });
       return;
     }
@@ -330,9 +330,10 @@ export function Providers() {
     setTestResult(null);
 
     try {
+      const apiKey = provider.api_key || (Array.isArray(provider.api_keys) && provider.api_keys.length > 0 ? provider.api_keys[0] : '');
       const result = await api.testProviderModel(
         provider.api_base_url,
-        provider.api_key,
+        apiKey,
         testingModel
       );
       setTestResult(result);
