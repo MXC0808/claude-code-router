@@ -12,6 +12,7 @@ import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import type { Tool as AnthropicTool } from "@anthropic-ai/sdk/resources/messages";
 import { Transformer } from "./transformer";
 import type { ProviderTokenizerConfig } from "./tokenizer";
+import type { ApiKeyPool } from "../services/api-key-pool";
 
 export interface UrlCitation {
   url: string;
@@ -209,6 +210,7 @@ export interface LLMProvider {
   name: string;
   baseUrl: string;
   apiKey: string;
+  apiKeyPool?: ApiKeyPool;
   models: string[];
   transformer?: {
     [key: string]: {
@@ -236,7 +238,8 @@ export interface RequestRouteInfo {
 export interface ConfigProvider {
   name: string;
   api_base_url: string;
-  api_key: string;
+  api_key?: string;
+  api_keys?: string[];
   models: string[];
   transformer: {
     use?: string[] | Array<any>[];
