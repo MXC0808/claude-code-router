@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useConfig } from "./ConfigProvider";
@@ -14,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Trash2, Plus, Eye, EyeOff, Search, XCircle, Wifi } from "lucide-react";
+import { X, Trash2, Plus, Eye, EyeOff, Search, XCircle, Wifi, KeyRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/ui/combobox";
 import { ModelSelector } from "@/components/ui/model-selector";
@@ -45,6 +46,8 @@ export function Providers() {
   const [testingModel, setTestingModel] = useState<string>("");
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestProviderResponse | null>(null);
+  const [importKeysIndex, setImportKeysIndex] = useState<number | null>(null);
+  const [importKeysText, setImportKeysText] = useState("");
 
   const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -237,6 +240,42 @@ export function Providers() {
     setIsNewProvider(false);
     setApiKeyError(null);
     setNameError(null);
+  };
+
+  const handleImportKeys = (index: number) => {
+    const actualIndex = validProviders.indexOf(filteredProviders[index]);
+    const provider = config.Providers[actualIndex];
+    const existingKeys = provider.api_keys && Array.isArray(provider.api_keys)
+      ? provider.api_keys.join('\n')
+      : '';
+    setImportKeysIndex(actualIndex);
+    setImportKeysText(existingKeys);
+  };
+
+  const handleSaveImportKeys = () => {
+    if (importKeysIndex === null) return;
+    const keys = importKeysText
+      .split('\n')
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
+
+    if (keys.length === 0) {
+      setLocalToast({ message: t("providers.import_keys_empty"), type: "error" });
+      return;
+    }
+
+    const newProviders = [...config.Providers];
+    newProviders[importKeysIndex] = {
+      ...newProviders[importKeysIndex],
+      api_keys: keys,
+      api_key: '',
+    };
+    const newConfig = { ...config, Providers: newProviders };
+    setConfig(newConfig);
+    persistConfig(newConfig);
+    setImportKeysIndex(null);
+    setImportKeysText("");
+    setLocalToast({ message: t("providers.import_keys_success"), type: "success" });
   };
 
   // Handle deletion by setting the correct index in the state
@@ -652,6 +691,7 @@ export function Providers() {
           onTest={handleTestProvider}
           onRemove={handleSetDeletingProviderIndex}
           onCopy={handleCopyProvider}
+          onImportKeys={handleImportKeys}
         />
       </CardContent>
 
@@ -1128,6 +1168,35 @@ export function Providers() {
               <Button onClick={handleSaveProvider}>{t("app.save")}</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Keys Dialog */}
+      <Dialog open={importKeysIndex !== null} onOpenChange={(open) => {
+        if (!open) {
+          setImportKeysIndex(null);
+          setImportKeysText("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("providers.import_keys")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={importKeysText}
+              onChange={(e) => setImportKeysText(e.target.value)}
+              placeholder={t("providers.import_keys_placeholder")}
+              className="min-h-[200px] font-mono text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setImportKeysIndex(null);
+              setImportKeysText("");
+            }}>{t("app.cancel")}</Button>
+            <Button onClick={handleSaveImportKeys}>{t("app.save")}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

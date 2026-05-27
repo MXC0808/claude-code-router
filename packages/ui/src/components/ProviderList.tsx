@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Copy, Wifi, Pencil, Trash2 } from "lucide-react";
+import { Copy, Wifi, Pencil, Trash2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +16,7 @@ interface ProviderListProps {
   onTest: (index: number) => void;
   onRemove: (index: number) => void;
   onCopy: (index: number) => void;
+  onImportKeys: (index: number) => void;
 }
 
 function ActionButton({
@@ -56,6 +57,7 @@ function ProviderRow({
   onTest,
   onRemove,
   onCopy,
+  onImportKeys,
 }: {
   provider: Provider;
   index: number;
@@ -63,6 +65,7 @@ function ProviderRow({
   onTest: (index: number) => void;
   onRemove: (index: number) => void;
   onCopy: (index: number) => void;
+  onImportKeys: (index: number) => void;
 }) {
   const { t } = useTranslation();
   const models = Array.isArray(provider.models) ? provider.models : [];
@@ -81,6 +84,12 @@ function ProviderRow({
         </div>
       </div>
       <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+        <ActionButton
+          icon={KeyRound}
+          variant="ghost"
+          tooltip={t("providers.import_keys")}
+          onClick={() => onImportKeys(index)}
+        />
         <ActionButton
           icon={Copy}
           variant="ghost"
@@ -117,6 +126,7 @@ export function ProviderList({
   onTest,
   onRemove,
   onCopy,
+  onImportKeys,
 }: ProviderListProps) {
   if (!providers || !Array.isArray(providers)) {
     return (
@@ -140,6 +150,7 @@ export function ProviderList({
             onTest={onTest}
             onRemove={onRemove}
             onCopy={onCopy}
+            onImportKeys={onImportKeys}
           />
         ))}
       </div>

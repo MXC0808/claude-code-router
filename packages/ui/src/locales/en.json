@@ -134,7 +134,11 @@
     "copy_success": "Provider copied successfully",
     "test": "Test",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "import_keys": "Import Keys",
+    "import_keys_placeholder": "Enter one API key per line. Supports $VAR or ${VAR} format.",
+    "import_keys_success": "API keys imported successfully",
+    "import_keys_empty": "Please enter at least one API key"
 
   },
   "router": {

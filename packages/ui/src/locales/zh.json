@@ -134,7 +134,11 @@
     "copy_success": "供应商复制成功",
     "test": "测试",
     "edit": "编辑",
-    "delete": "删除"
+    "delete": "删除",
+    "import_keys": "导入密钥",
+    "import_keys_placeholder": "每行输入一个 API Key，支持 $VAR 或 ${VAR} 格式",
+    "import_keys_success": "API 密钥导入成功",
+    "import_keys_empty": "请至少输入一个 API 密钥"
 
   },
   "router": {
