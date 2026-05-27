@@ -254,10 +254,12 @@ export function Providers() {
 
   const handleSaveImportKeys = () => {
     if (importKeysIndex === null) return;
-    const keys = importKeysText
-      .split('\n')
-      .map(k => k.trim())
-      .filter(k => k.length > 0);
+    const keys = Array.from(new Set(
+      importKeysText
+        .split('\n')
+        .map(k => k.trim())
+        .filter(k => k.length > 0)
+    ));
 
     if (keys.length === 0) {
       setLocalToast({ message: t("providers.import_keys_empty"), type: "error" });
@@ -268,7 +270,6 @@ export function Providers() {
     newProviders[importKeysIndex] = {
       ...newProviders[importKeysIndex],
       api_keys: keys,
-      api_key: '',
     };
     const newConfig = { ...config, Providers: newProviders };
     setConfig(newConfig);
