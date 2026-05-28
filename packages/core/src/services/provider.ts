@@ -106,7 +106,7 @@ export class ProviderService {
         if (providerConfig.api_keys?.length === 1) {
           apiKey = providerConfig.api_keys[0];
         } else if (providerConfig.api_keys && providerConfig.api_keys.length > 1) {
-          apiKeyPool = new ApiKeyPool(providerConfig.api_keys);
+          apiKeyPool = new ApiKeyPool(providerConfig.api_keys, providerConfig.retryable_status_codes);
           apiKey = apiKeyPool.getNext();
         } else {
           apiKey = providerConfig.api_key!;

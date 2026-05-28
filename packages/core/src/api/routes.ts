@@ -13,7 +13,6 @@ import { ConfigService } from "@/services/config";
 import { ProviderService } from "@/services/provider";
 import { TransformerService } from "@/services/transformer";
 import { Transformer } from "@/types/transformer";
-import { RETRYABLE_STATUS_CODES } from "@/services/api-key-pool";
 
 // Extend FastifyInstance to include custom services
 declare module "fastify" {
@@ -341,7 +340,7 @@ async function sendWithKeyPool(
       const response = await doSendRequest(requestBody, config, provider, apiKey, fastify, bypass, transformer, context);
       return response;
     } catch (error: any) {
-      if (error.statusCode && RETRYABLE_STATUS_CODES.has(error.statusCode)) {
+      if (error.statusCode && pool.isRetryable(error.statusCode)) {
         fastify.log.warn(
           `[key_pool] Key for provider ${provider.name} returned ${error.statusCode}, rotating to next key`
         );

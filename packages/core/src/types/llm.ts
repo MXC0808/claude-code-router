@@ -211,6 +211,7 @@ export interface LLMProvider {
   baseUrl: string;
   apiKey: string;
   apiKeyPool?: ApiKeyPool;
+  retryableStatusCodes?: number[];
   models: string[];
   transformer?: {
     [key: string]: {
@@ -240,6 +241,7 @@ export interface ConfigProvider {
   api_base_url: string;
   api_key?: string;
   api_keys?: string[];
+  retryable_status_codes?: number[];
   models: string[];
   transformer: {
     use?: string[] | Array<any>[];
