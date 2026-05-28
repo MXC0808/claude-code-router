@@ -51,8 +51,11 @@ fix: 修复了调用小米 mimo模型报400 reasoning_content的问题 ; 查看[
 
 fix：优化了~/.claude-code-router/config.json 文件的权限  [#pr-1399](https://github.com/musistudio/claude-code-router/pull/1399)
 
+feat: [API Key 号池](docs/docs/server/config/api-key-pool.md) — 支持多 API Key 轮询、失效切换、自定义重试状态码、UI 批量导入密钥
+
 ## 📚 文档
 
+- [API Key 号池](docs/docs/server/config/api-key-pool.md) - 多 API Key 轮询、失效切换、自定义重试状态码配置说明
 - [Transformer 中文文档](docs/docs/server/config/transformers_zh.md) - 25 个内置 transformer 的详细说明，包括 Provider 专用 transformer、功能型 transformer 和工具 transformer
 - [Transformer English Documentation](docs/docs/server/config/transformers.md)
 
