@@ -1,5 +1,35 @@
 # API Key 号池 - 变更记录
 
+## v2.0.2
+
+### 新增功能
+
+**API Key 冷却恢复机制**
+
+429 等可重试错误不再永久标记 Key 失效，改为冷却 N 秒后自动恢复。
+
+- 新增 `key_cooldown_seconds` 配置项，控制冷却时间，默认 60 秒
+- 失效分类：401/403 永久失效，429 等走冷却逻辑
+- 支持 `Retry-After` header：冷却时间取配置值与 header 值中的较大值
+- 优化 key 耗尽错误信息，区分永久失效和冷却中两种场景
+
+### 配置示例
+
+```json
+{
+  "providers": [
+    {
+      "name": "xiaomi-mimo",
+      "api_base_url": "https://api.xiaomi.com/v1",
+      "api_keys": ["$MIMO_KEY_1", "$MIMO_KEY_2"],
+      "key_cooldown_seconds": 120,
+      "models": ["MiMo-7B"],
+      "transformer": { "use": ["openai"] }
+    }
+  ]
+}
+```
+
 ## v2.0.1
 
 ### 新增功能

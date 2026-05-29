@@ -334,7 +334,12 @@ async function sendWithKeyPool(
   let lastError: any;
 
   for (let attempt = 0; attempt < totalKeys; attempt++) {
-    const apiKey = pool.getNext();
+    let apiKey: string;
+    try {
+      apiKey = pool.getNext();
+    } catch {
+      break;
+    }
 
     try {
       const response = await doSendRequest(requestBody, config, provider, apiKey, fastify, bypass, transformer, context);
@@ -344,7 +349,10 @@ async function sendWithKeyPool(
         fastify.log.warn(
           `[key_pool] Key for provider ${provider.name} returned ${error.statusCode}, rotating to next key`
         );
-        pool.markFailed(apiKey, error.statusCode);
+        const retryAfterHeader = error.headers?.['Retry-After'];
+        const parsed = retryAfterHeader !== undefined ? parseInt(retryAfterHeader, 10) : undefined;
+        const retryAfterSeconds = parsed !== undefined && !isNaN(parsed) ? parsed : undefined;
+        pool.markFailed(apiKey, error.statusCode, retryAfterSeconds);
         lastError = error;
         continue;
       }
@@ -353,11 +361,18 @@ async function sendWithKeyPool(
   }
 
   const poolStatus = pool.getStatus();
+  const detail = poolStatus.permanentFailed === 0 && poolStatus.coolingDown === 0
+    ? 'unknown reason'
+    : poolStatus.permanentFailed > 0 && poolStatus.coolingDown === 0
+      ? `${poolStatus.permanentFailed} permanently failed`
+      : poolStatus.coolingDown > 0 && poolStatus.permanentFailed === 0
+        ? `${poolStatus.coolingDown} cooling down`
+        : `${poolStatus.permanentFailed} permanent, ${poolStatus.coolingDown} cooling`;
   fastify.log.error(
-    `[key_pool] All ${poolStatus.total} keys exhausted for provider ${provider.name}`
+    `[key_pool] All ${poolStatus.total} keys unavailable (${detail}) for provider ${provider.name}`
   );
   throw createApiError(
-    `All API keys exhausted for provider ${provider.name}`,
+    `All ${poolStatus.total} keys unavailable (${detail}) for provider ${provider.name}`,
     lastError?.statusCode || 429,
     "api_keys_exhausted",
     "api_error",

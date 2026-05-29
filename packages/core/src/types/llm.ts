@@ -242,6 +242,7 @@ export interface ConfigProvider {
   api_key?: string;
   api_keys?: string[];
   retryable_status_codes?: number[];
+  key_cooldown_seconds?: number;
   models: string[];
   transformer: {
     use?: string[] | Array<any>[];
