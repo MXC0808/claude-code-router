@@ -9,10 +9,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Combobox } from "@/components/ui/combobox";
+import {
+  Zap,
+  Copy,
+  Plus,
+  Replace,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Ban,
+} from "lucide-react";
 import { api } from "@/lib/api";
+import type { TestProviderResponse } from "@/lib/api";
 import type { Config } from "@/types";
 
 // ========== Types ==========
@@ -54,10 +67,10 @@ export function deduplicateKeys(keys: string[]): { unique: string[]; removed: nu
 
 // ========== Promise Pool ==========
 
-export const CANCELLED_SIGNAL = Symbol("cancelled");
-export type PoolResult<T> = T | typeof CANCELLED_SIGNAL;
+const CANCELLED_SIGNAL = Symbol("cancelled");
+type PoolResult<T> = T | typeof CANCELLED_SIGNAL;
 
-export async function promisePool<T>(
+async function promisePool<T>(
   tasks: (() => Promise<T>)[],
   concurrency: number,
   onTaskComplete: (index: number, result: PoolResult<T>) => void,
@@ -104,13 +117,15 @@ export async function promisePool<T>(
   });
 }
 
+const TEST_CONCURRENCY = 5;
+
 // ========== Component ==========
 
 export function ApiKeyTesterDialog({
   open,
   onOpenChange,
   config,
-  onConfigChange: _onConfigChange,
+  onConfigChange,
 }: ApiKeyTesterDialogProps) {
   const { t } = useTranslation();
 
@@ -178,29 +193,221 @@ export function ApiKeyTesterDialog({
     cancelRef.current = true;
   }, []);
 
-  void api;
-  void cancelTest;
-  void resetResults;
+  const startTest = useCallback(async () => {
+    if (!baseUrl.trim()) {
+      setToast({ message: t("apiTester.validation_base_url"), type: "error" });
+      return;
+    }
+    const rawKeys = parseKeys(keysText);
+    if (rawKeys.length === 0) {
+      setToast({ message: t("apiTester.validation_keys"), type: "error" });
+      return;
+    }
+    if (!model.trim()) {
+      setToast({ message: t("apiTester.validation_model"), type: "error" });
+      return;
+    }
+
+    const { unique, removed } = deduplicateKeys(rawKeys);
+    if (removed > 0) {
+      setToast({
+        message: t("apiTester.duplicate_removed", { count: removed }),
+        type: "success",
+      });
+    }
+
+    const initialResults: KeyTestResult[] = unique.map((key) => ({
+      key,
+      status: "pending" as const,
+    }));
+
+    setResults(initialResults);
+    setCompletedCount(0);
+    setIsTesting(true);
+    cancelRef.current = false;
+
+    const tasks = unique.map((key) => async (): Promise<TestProviderResponse> => {
+      try {
+        return await api.testProviderModel(baseUrl.trim(), key, model.trim());
+      } catch (error) {
+        return {
+          success: false,
+          error: { code: "UNKNOWN", message: (error as Error).message },
+        };
+      }
+    });
+
+    const completed: KeyTestResult[] = [...initialResults];
+
+    // Mark each task as testing right when its turn comes — done lazily
+    // by wrapping each task to set status before awaiting
+    const wrappedTasks = tasks.map((task, index) => async () => {
+      completed[index] = { ...completed[index], status: "testing" };
+      setResults([...completed]);
+      return task();
+    });
+
+    await promisePool<TestProviderResponse>(
+      wrappedTasks,
+      TEST_CONCURRENCY,
+      (index, response) => {
+        if (response === CANCELLED_SIGNAL) {
+          completed[index] = { ...completed[index], status: "cancelled" };
+        } else if (response.success) {
+          completed[index] = {
+            ...completed[index],
+            status: "success",
+            latency: response.latency,
+          };
+        } else {
+          completed[index] = {
+            ...completed[index],
+            status: "failed",
+            error: response.error?.code || "UNKNOWN",
+          };
+        }
+        setResults([...completed]);
+        setCompletedCount((c) => c + 1);
+      },
+      () => cancelRef.current
+    );
+
+    setIsTesting(false);
+  }, [baseUrl, keysText, model, t]);
+
+  // --- Derived state ---
+  const availableResults = results
+    .filter((r) => r.status === "success")
+    .sort((a, b) => (a.latency || Infinity) - (b.latency || Infinity));
+  const hasAvailable = availableResults.length > 0;
+  const isTestComplete =
+    results.length > 0 &&
+    !isTesting &&
+    results.every((r) => r.status !== "pending" && r.status !== "testing");
+
+  const getErrorDisplay = (errorCode?: string): string => {
+    const keyMap: Record<string, string> = {
+      MISSING_BASE_URL: "apiTester.error_missing_base_url",
+      MISSING_API_KEY: "apiTester.error_missing_api_key",
+      INVALID_BASE_URL: "apiTester.error_invalid_base_url",
+      AUTH_FAILED: "apiTester.error_auth_failed",
+      MODEL_NOT_FOUND: "apiTester.error_model_not_found",
+      TIMEOUT: "apiTester.error_timeout",
+      NETWORK_ERROR: "apiTester.error_network_error",
+    };
+    return t(keyMap[errorCode || ""] || "apiTester.error_unknown");
+  };
+
+  const handleCopyAvailable = useCallback(async () => {
+    const text = availableResults.map((r) => r.key).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast({ message: t("apiTester.copy_success"), type: "success" });
+    } catch {
+      setToast({ message: t("apiTester.copy_failed"), type: "error" });
+    }
+  }, [availableResults, t]);
+
+  const handleImportKeys = useCallback(
+    (action: "append" | "replace") => {
+      if (importTargetIndex === null || !hasAvailable) return;
+      const targetProvider = providers[importTargetIndex];
+      if (!targetProvider) return;
+
+      const newKeys = availableResults.map((r) => r.key);
+      const newConfig = { ...config };
+      const newProviders = [...newConfig.Providers];
+      const target = { ...newProviders[importTargetIndex] };
+
+      if (action === "append") {
+        const existingKeys = target.api_keys || [];
+        target.api_keys = [...existingKeys, ...newKeys];
+      } else {
+        target.api_keys = [...newKeys];
+      }
+
+      newProviders[importTargetIndex] = target;
+      newConfig.Providers = newProviders;
+      onConfigChange(newConfig);
+
+      const messageKey =
+        action === "append" ? "apiTester.append_success" : "apiTester.replace_success";
+      setToast({
+        message: t(messageKey, { count: newKeys.length, name: targetProvider.name }),
+        type: "success",
+      });
+    },
+    [importTargetIndex, hasAvailable, availableResults, providers, config, onConfigChange, t]
+  );
+
+  // ========== Render ==========
+
+  const getStatusIcon = (status: KeyTestStatus) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="h-4 w-4 text-gray-400" />;
+      case "testing":
+        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+      case "success":
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case "failed":
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case "cancelled":
+        return <Ban className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  // Only allow close when not testing
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && isTesting) return;
+    onOpenChange(nextOpen);
+  };
 
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       resetResults();
+      setModel("");
       setIsTesting(false);
       cancelRef.current = false;
       setToast(null);
+      if (mode === "existing" && selectedProviderIndex !== null) {
+        setImportTargetIndex(selectedProviderIndex);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const sortedResults = isTestComplete
+    ? [
+        ...availableResults,
+        ...results
+          .filter((r) => r.status !== "success")
+          .sort((a, b) => {
+            const order: Record<string, number> = {
+              failed: 0,
+              cancelled: 1,
+              pending: 2,
+              testing: 3,
+              success: 4,
+            };
+            return (order[a.status] ?? 2) - (order[b.status] ?? 2);
+          }),
+      ]
+    : results;
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col gap-3">
           <DialogHeader>
-            <DialogTitle>{t("apiTester.title")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              {t("apiTester.title")}
+            </DialogTitle>
           </DialogHeader>
 
+          {/* === Configuration Area === */}
           <Tabs
             value={mode}
             onValueChange={(v) => setMode(v as "existing" | "manual")}
@@ -237,6 +444,7 @@ export function ApiKeyTesterDialog({
             </TabsContent>
           </Tabs>
 
+          {/* Shared fields */}
           <div className="space-y-3">
             <div>
               <Label>{t("apiTester.model")}</Label>
@@ -269,15 +477,130 @@ export function ApiKeyTesterDialog({
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground">
-            {results.length > 0 ? `${completedCount} / ${results.length}` : ""}
+          {/* === Action Buttons === */}
+          <div className="flex items-center gap-2">
+            {!isTesting ? (
+              <Button onClick={startTest}>
+                <Zap className="mr-2 h-4 w-4" />
+                {t("apiTester.start_test")}
+              </Button>
+            ) : (
+              <>
+                <Button disabled>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("apiTester.testing")}
+                </Button>
+                <Button variant="outline" onClick={cancelTest}>
+                  {t("apiTester.cancel")}
+                </Button>
+              </>
+            )}
+            {isTesting && (
+              <span className="text-sm text-muted-foreground">
+                {t("apiTester.progress", {
+                  completed: completedCount,
+                  total: results.length,
+                })}
+              </span>
+            )}
           </div>
 
-          <div>
-            <Button onClick={() => {}} disabled>
-              {t("apiTester.start_test")}
-            </Button>
-          </div>
+          {/* === Results List === */}
+          {results.length > 0 && (
+            <div className="flex-1 overflow-y-auto border rounded-md">
+              {isTestComplete && (
+                <div className="sticky top-0 bg-background border-b px-4 py-2 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">
+                    {hasAvailable
+                      ? t("apiTester.summary", {
+                          available: availableResults.length,
+                          total: results.length,
+                          latency: availableResults[0]?.latency || 0,
+                        })
+                      : t("apiTester.summary_no_available")}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyAvailable}
+                    disabled={!hasAvailable}
+                  >
+                    <Copy className="mr-1 h-3 w-3" />
+                    {t("apiTester.copy_available")}
+                  </Button>
+                </div>
+              )}
+
+              <div className="divide-y">
+                {sortedResults.map((result, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between px-4 py-2 gap-3"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {getStatusIcon(result.status)}
+                      <code
+                        className={`text-xs truncate font-mono ${
+                          result.status === "cancelled" ? "line-through text-gray-400" : ""
+                        }`}
+                      >
+                        {maskKey(result.key)}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {result.status === "success" && result.latency !== undefined && (
+                        <Badge variant="outline" className="text-green-600 border-green-300">
+                          {result.latency}ms
+                        </Badge>
+                      )}
+                      {result.status === "failed" && result.error && (
+                        <Badge variant="outline" className="text-red-600 border-red-300">
+                          {getErrorDisplay(result.error)}
+                        </Badge>
+                      )}
+                      {result.status === "cancelled" && (
+                        <Badge variant="outline" className="text-gray-400">
+                          {t("apiTester.status_cancelled")}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* === Import Area === */}
+          {isTestComplete && hasAvailable && (
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <Combobox
+                options={providerOptions}
+                value={importTargetIndex !== null ? String(importTargetIndex) : ""}
+                onChange={(val) =>
+                  setImportTargetIndex(val !== "" ? Number(val) : null)
+                }
+                placeholder={t("apiTester.select_target_provider")}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleImportKeys("append")}
+                disabled={importTargetIndex === null}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                {t("apiTester.append_to_provider")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleImportKeys("replace")}
+                disabled={importTargetIndex === null}
+              >
+                <Replace className="mr-1 h-3 w-3" />
+                {t("apiTester.replace_provider_keys")}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       {toast && (
