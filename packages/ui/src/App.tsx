@@ -33,7 +33,7 @@ import type { Config } from "@/types";
 function App() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { config, error } = useConfig();
+  const { config, setConfig, error } = useConfig();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isJsonEditorOpen, setIsJsonEditorOpen] = useState(false);
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false);
@@ -53,13 +53,14 @@ function App() {
     async (newConfig: Config) => {
       try {
         await api.updateConfig(newConfig);
+        setConfig(newConfig);
         setToast({ message: t("app.config_saved_success"), type: "success" });
       } catch (err) {
         console.error("Failed to save config:", err);
         setToast({ message: t("app.config_saved_failed"), type: "error" });
       }
     },
-    [t]
+    [setConfig, t]
   );
 
   const saveConfig = async () => {
