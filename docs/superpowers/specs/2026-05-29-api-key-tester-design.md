@@ -33,7 +33,7 @@ Dialog 顶部分两个 Tab：
 **"已有供应商" Tab：**
 - 下拉选择已配置的供应商
 - 自动填入 `api_base_url`
-- `api_keys` 数组预填到 Keys 文本框（每行一个）
+- Keys 预填逻辑：优先使用 `api_keys` 数组；若 `api_keys` 为空则使用 `api_key` 单个值；每行一个
 
 **"手动输入" Tab：**
 - 手动填写 Base URL 输入框
@@ -52,6 +52,7 @@ Dialog 顶部分两个 Tab：
   - `testing` — 蓝色旋转图标，测试中
   - `success` — 绿色 + 延迟数值（如 `342ms`）
   - `failed` — 红色 + 错误原因（如 `AUTH_FAILED`）
+  - `cancelled` — 灰色删除线，已取消
 
 ### 步骤三：结果
 
@@ -62,6 +63,7 @@ Dialog 顶部分两个 Tab：
   - **"复制可用 Keys"** — 将可用 keys 换行拼接复制到剪贴板
   - **"追加到供应商"** — 下拉选择目标供应商，追加到其 `api_keys`
   - **"替换供应商 Keys"** — 下拉选择目标供应商，替换其 `api_keys`
+  - 目标供应商选择器：追加和替换共用，默认选中"已有供应商" Tab 中当前选择的供应商；手动输入模式下默认为空
 
 ## 数据结构
 
@@ -70,7 +72,7 @@ Dialog 顶部分两个 Tab：
 ```typescript
 interface KeyTestResult {
   key: string;           // 原始 key 值（显示时脱敏：前8位 + **** + 后4位）
-  status: 'pending' | 'testing' | 'success' | 'failed';
+  status: 'pending' | 'testing' | 'success' | 'failed' | 'cancelled';
   latency?: number;      // ms，仅 success 时有值
   error?: string;        // 错误码，仅 failed 时有值
 }
@@ -106,7 +108,7 @@ importTargetIndex: number | null
 
 - 单个 key 超时（复用现有 30s 超时）→ 标记为 `failed`，错误码 `TIMEOUT`
 - 单个 key 网络错误 → 标记为 `failed`，错误码 `NETWORK_ERROR`
-- 测试进行中点击"取消" → 中止未开始的 key，已在测试中的等待完成，结果保留
+- 测试进行中点击"取消" → 中止未开始的 key，将其状态标记为 `cancelled`；已在测试中的等待完成，结果保留
 
 ### 导入操作
 
