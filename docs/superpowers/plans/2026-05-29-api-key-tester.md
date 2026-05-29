@@ -667,7 +667,7 @@ git commit -m "feat: 实现一键复制和导入到供应商逻辑"
                 <Combobox
                   options={providerOptions}
                   value={selectedProviderIndex !== null ? String(selectedProviderIndex) : ""}
-                  onValueChange={(val) =>
+                  onChange={(val) =>
                     setSelectedProviderIndex(val !== "" ? Number(val) : null)
                   }
                   placeholder={t("apiTester.select_provider")}
@@ -696,7 +696,7 @@ git commit -m "feat: 实现一键复制和导入到供应商逻辑"
                 <Combobox
                   options={modelOptions}
                   value={model}
-                  onValueChange={setModel}
+                  onChange={setModel}
                   placeholder={t("apiTester.select_model")}
                   searchPlaceholder={t("apiTester.model_placeholder")}
                 />
@@ -823,7 +823,7 @@ git commit -m "feat: 实现一键复制和导入到供应商逻辑"
               <Combobox
                 options={providerOptions}
                 value={importTargetIndex !== null ? String(importTargetIndex) : ""}
-                onValueChange={(val) =>
+                onChange={(val) =>
                   setImportTargetIndex(val !== "" ? Number(val) : null)
                 }
                 placeholder={t("apiTester.select_target_provider")}
