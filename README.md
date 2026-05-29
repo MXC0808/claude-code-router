@@ -37,6 +37,9 @@ ccr code
 ## 变更记录
 
 #### v2.0.1
+
+feat: 支持多 API Key 轮询、失效切换、自定义重试状态码、UI 批量导入密钥- [API Key 号池](docs/docs/server/config/api-key-pool.md)
+
 feat: 为供应商列表新增了复制按钮、操作按钮悬浮显示
 
 feat: 供应商列表新增测试按钮，选择模型后通过最小化 chat completion 请求验证模型是否可用（`max_tokens: 1`)
@@ -50,9 +53,6 @@ feat：添加 Mistral、Codex、Chrome 设备端提供商；修复 Gemini/DeepSe
 fix: 修复了调用小米 mimo模型报400 reasoning_content的问题 ; 查看[reasoning_content修复文档](REASONING_CONTENT_FIX.md)添加相关配置
 
 fix：优化了~/.claude-code-router/config.json 文件的权限  [#pr-1399](https://github.com/musistudio/claude-code-router/pull/1399)
-
-feat: [API Key 号池](docs/docs/server/config/api-key-pool.md) — 支持多 API Key 轮询、失效切换、自定义重试状态码、UI 批量导入密钥
-
 ## 📚 文档
 
 - [API Key 号池](docs/docs/server/config/api-key-pool.md) - 多 API Key 轮询、失效切换、自定义重试状态码配置说明
