@@ -10,7 +10,7 @@ import { LogViewer } from "@/components/LogViewer";
 import { Button } from "@/components/ui/button";
 import { useConfig } from "@/components/ConfigProvider";
 import { api } from "@/lib/api";
-import { Settings, Languages, Save, RefreshCw, FileJson, CircleArrowUp, FileText, FileCog } from "lucide-react";
+import { Settings, Languages, Save, RefreshCw, FileJson, CircleArrowUp, FileText, FileCog, Zap } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -27,6 +27,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import "@/styles/animations.css";
+import { ApiKeyTesterDialog } from "@/components/ApiKeyTesterDialog";
+import type { Config } from "@/types";
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -45,6 +47,20 @@ function App() {
   const [hasCheckedUpdate, setHasCheckedUpdate] = useState(false);
   const [isUpdateFeatureAvailable, setIsUpdateFeatureAvailable] = useState(true);
   const hasAutoCheckedUpdate = useRef(false);
+  const [isApiKeyTesterOpen, setIsApiKeyTesterOpen] = useState(false);
+
+  const handleConfigChange = useCallback(
+    async (newConfig: Config) => {
+      try {
+        await api.updateConfig(newConfig);
+        setToast({ message: t("app.config_saved_success"), type: "success" });
+      } catch (err) {
+        console.error("Failed to save config:", err);
+        setToast({ message: t("app.config_saved_failed"), type: "error" });
+      }
+    },
+    [t]
+  );
 
   const saveConfig = async () => {
     // Handle case where config might be null or undefined
@@ -316,6 +332,16 @@ function App() {
               <p>{t('app.presets')}</p>
             </TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => setIsApiKeyTesterOpen(true)} className="transition-all-ease hover:scale-110">
+                <Zap className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('apiTester.title')}</p>
+            </TooltipContent>
+          </Tooltip>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="transition-all-ease hover:scale-110">
@@ -394,6 +420,12 @@ function App() {
         </div>
       </main>
       <SettingsDialog isOpen={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <ApiKeyTesterDialog
+        open={isApiKeyTesterOpen}
+        onOpenChange={setIsApiKeyTesterOpen}
+        config={config}
+        onConfigChange={handleConfigChange}
+      />
       <JsonEditor 
         open={isJsonEditorOpen} 
         onOpenChange={setIsJsonEditorOpen} 
